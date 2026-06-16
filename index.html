@@ -1,0 +1,2332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tag Filter Configuration</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <style>
+        body {
+            background-color: #f3f4f6;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        .custom-shadow {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .sf-chip { transition: all 0.15s ease; }
+        .sf-chip:hover { transform: translateY(-1px); }
+        .child-faded { opacity: 0.45; pointer-events: none; }
+        
+        /* Indeterminate state for checkbox */
+        .checkbox-indeterminate {
+            position: relative;
+        }
+        .checkbox-indeterminate::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 10px;
+            height: 2px;
+            background-color: currentColor;
+            border-radius: 1px;
+        }
+        
+        .search-clear-btn { transition: opacity 0.15s ease; }
+        .filter-item-hidden { display: none !important; }
+        .no-results-msg {
+            text-align: center;
+            padding: 1.5rem;
+            color: #9ca3af;
+            font-size: 12px;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in { animation: fadeIn 0.2s ease-out; }
+        
+        /* Tooltip styles */
+        .sf-tooltip-wrap {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            margin-left: 6px;
+        }
+        .sf-tooltip-icon {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #9ca3af;
+            color: white;
+            font-size: 10px;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: help;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        .sf-tooltip-bubble {
+            position: fixed;
+            background: #1f2937;
+            color: white;
+            font-size: 12px;
+            line-height: 1.4;
+            padding: 8px 12px;
+            border-radius: 6px;
+            white-space: normal;
+            word-wrap: break-word;
+            max-width: 220px;
+            width: max-content;
+            pointer-events: none;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.15s ease, visibility 0.15s ease;
+            z-index: 9999;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            top: 0;
+            left: 0;
+        }
+        .sf-tooltip-bubble::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 5px;
+            border-style: solid;
+            border-color: #1f2937 transparent transparent transparent;
+        }
+        .sf-tooltip-bubble.is-visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        /* Prevent search input from losing focus styles */
+        .sf-search-input:focus {
+            outline: none;
+            box-shadow: ring(1px) ring(var(--tw-ring-color)) !important;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+    <div id="global-tooltip" class="sf-tooltip-bubble"></div>
+    <div class="fixed top-4 left-4 z-50 flex gap-2">
+        <button id="enter-storefront-btn" class="px-4 py-2 bg-zinc-800 text-white rounded-md text-sm font-semibold shadow-lg hover:bg-zinc-700 transition-colors">Enter StoreFront</button>
+        <button id="back-filter-btn" class="hidden px-4 py-2 bg-white text-zinc-800 border border-gray-300 rounded-md text-sm font-semibold shadow-lg hover:bg-gray-50 transition-colors">Back to Filter setup</button>
+    </div>
+
+    <!-- SETUP VIEW -->
+    <div id="setup-view" class="bg-white w-full max-w-4xl rounded-xl custom-shadow overflow-hidden flex flex-col border border-gray-200">
+        <!-- Header -->
+        <div class="px-4 py-3 border-b border-gray-200 flex justify-between items-center bg-white">
+            <div class="flex items-center space-x-2">
+                <span class="font-semibold text-gray-800">Tag</span>
+                <i class="fas fa-info-circle text-gray-400 text-sm cursor-pointer hover:text-gray-600"></i>
+            </div>
+            <button class="text-gray-400 hover:text-gray-600 transition-colors">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div class="flex flex-1 overflow-hidden">
+            <!-- LEFT PANEL -->
+            <div class="w-2/3 p-5 overflow-y-auto space-y-6">
+                <!-- FILTER OPTION BOX -->
+                <div class="border border-gray-200 rounded-lg p-4 space-y-5">
+                    <h3 class="font-bold text-gray-800 text-sm">Filter option</h3>
+
+                    <!-- Source -->
+                    <div class="space-y-1">
+                        <label class="block text-xs font-medium text-gray-600">Source</label>
+                        <div class="relative">
+                            <input type="hidden" id="source-select" value="">
+                            <button id="source-dropdown-btn" type="button" class="w-full border border-gray-300 rounded-md py-1.5 px-3 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 flex items-center justify-between hover:border-gray-400 transition-colors">
+                                <span id="source-dropdown-label" class="text-gray-400">Select your source</span>
+                                <i class="fas fa-chevron-down text-xs text-gray-400"></i>
+                            </button>
+                            <div id="source-dropdown-menu" class="hidden absolute z-30 mt-1 w-full bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 overflow-hidden">
+                                <div class="max-h-72 overflow-y-auto py-1">
+                                    <button type="button" class="source-option w-full text-left px-3 py-2 hover:bg-gray-50 flex justify-between" data-value="Availability"><span>Availability</span><span class="text-[11px] text-gray-400">Standard</span></button>
+                                    <button type="button" class="source-option w-full text-left px-3 py-2 hover:bg-gray-50 flex justify-between" data-value="Collection"><span>Collection</span><span class="text-[11px] text-gray-400">Standard</span></button>
+                                    <button type="button" class="source-option w-full text-left px-3 py-2 hover:bg-gray-50 flex justify-between" data-value="Product Category"><span>Product Category</span><span class="text-[11px] text-gray-400">Standard</span></button>
+                                    <button type="button" class="source-option w-full text-left px-3 py-2 hover:bg-gray-50 flex justify-between" data-value="Price"><span>Price</span><span class="text-[11px] text-gray-400">Standard</span></button>
+                                    <button type="button" class="source-option w-full text-left px-3 py-2 hover:bg-gray-50 flex justify-between" data-value="Tag"><span>Tag</span><span class="text-[11px] text-gray-400">Standard</span></button>
+                                    <button type="button" class="source-option w-full text-left px-3 py-2 hover:bg-gray-50 flex justify-between" data-value="Vendor"><span>Vendor</span><span class="text-[11px] text-gray-400">Standard</span></button>
+                                    <button type="button" class="source-option w-full text-left px-3 py-2 hover:bg-gray-50 flex justify-between" data-value="Product Type"><span>Product Type</span><span class="text-[11px] text-gray-400">Standard</span></button>
+                                    <button type="button" class="source-option w-full text-left px-3 py-2 hover:bg-gray-50 flex justify-between" data-value="Color"><span>Color</span><span class="text-[11px] text-gray-400">Product Variant</span></button>
+                                    <button type="button" class="source-option w-full text-left px-3 py-2 hover:bg-gray-50 flex justify-between" data-value="Size"><span>Size</span><span class="text-[11px] text-gray-400">Product Variant</span></button>
+                                    <button type="button" class="source-option w-full text-left px-3 py-2 hover:bg-gray-50 flex justify-between" data-value="Material"><span>Material</span><span class="text-[11px] text-gray-400">Metafield</span></button>
+                                    <button type="button" class="source-option w-full text-left px-3 py-2 hover:bg-gray-50 flex justify-between" data-value="Shape"><span>Shape</span><span class="text-[11px] text-gray-400">Metafield</span></button>
+                                    <button type="button" class="source-option w-full text-left px-3 py-2 hover:bg-gray-50 flex justify-between" data-value="Image"><span>Image</span><span class="text-[11px] text-gray-400">Metafield</span></button>
+                                    <button type="button" class="source-option w-full text-left px-3 py-2 hover:bg-gray-50 flex justify-between" data-value="True or False"><span>True or False</span><span class="text-[11px] text-gray-400">Metafield</span></button>
+                                    <button type="button" class="source-option w-full text-left px-3 py-2 hover:bg-gray-50 flex justify-between" data-value="Multi line text"><span>Multi line text</span><span class="text-[11px] text-gray-400">Metafield</span></button>
+                                    <button type="button" class="source-option w-full text-left px-3 py-2 hover:bg-gray-50 flex justify-between" data-value="Rich Text"><span>Rich Text</span><span class="text-[11px] text-gray-400">Metafield</span></button>
+                                    <button type="button" class="source-option w-full text-left px-3 py-2 hover:bg-gray-50 flex justify-between" data-value="Decimal"><span>Decimal</span><span class="text-[11px] text-gray-400">Metafield</span></button>
+                                    <button type="button" class="source-option w-full text-left px-3 py-2 hover:bg-gray-50 flex justify-between" data-value="Integer"><span>Integer</span><span class="text-[11px] text-gray-400">Metafield</span></button>
+                                    <button type="button" class="source-option w-full text-left px-3 py-2 hover:bg-gray-50 flex justify-between" data-value="Single Line Text"><span>Single Line Text</span><span class="text-[11px] text-gray-400">Metafield</span></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Label -->
+                    <div id="label-container" class="space-y-1">
+                        <label class="block text-xs font-medium text-gray-600">Label</label>
+                        <div class="relative">
+                            <input type="text" value="" id="label-field" class="w-full border border-gray-300 rounded-md py-1.5 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+                            <span id="label-counter" class="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">0/40</span>
+                        </div>
+                    </div>
+
+                    <!-- Label Tooltip -->
+                    <div id="label-tooltip-container" class="space-y-1 hidden">
+                        <label class="block text-xs font-medium text-gray-600">Label tooltip</label>
+                        <div class="relative">
+                            <input type="text" value="" id="label-tooltip-field" maxlength="40" placeholder="Tooltip text (optional)" class="w-full border border-gray-300 rounded-md py-1.5 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+                            <span id="label-tooltip-counter" class="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">0/40</span>
+                        </div>
+                    </div>
+
+                    <!-- Display Type + Collapse Options -->
+                    <div id="advanced-options" class="space-y-4 hidden pt-2 border-t border-gray-100">
+                        <div class="space-y-1">
+                            <label class="block text-xs font-medium text-gray-600 flex items-center">
+                                Display type
+                                <i class="fas fa-question-circle ml-1 text-gray-400 text-[10px]"></i>
+                            </label>
+                            <div class="relative">
+                                <select id="display-type-select" class="w-full border border-gray-300 rounded-md py-1.5 px-3 text-sm appearance-none bg-white focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                    <option value="Box">Box</option>
+                                    <option value="Check List">Check List</option>
+                                    <option value="Slider">Slider</option>
+                                    <option value="Image Swatch">Image Swatch</option>
+                                    <option value="Color Swatch">Color Swatch</option>
+                                </select>
+                                <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400">
+                                    <i class="fas fa-chevron-down text-xs"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="hide-value-name-container" class="space-y-1 hidden">
+                            <div class="flex items-center gap-2">
+                                <label class="block text-xs font-medium text-gray-600">Hide Value Name</label>
+                                <button type="button" id="hide-name-toggle" class="relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none bg-gray-200">
+                                    <span id="hide-name-knob" aria-hidden="true" class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-0"></span>
+                                </button>
+                            </div>
+                            <input type="checkbox" id="hide-value-name" class="hidden">
+                        </div>
+
+                        <div id="collapse-options" class="flex flex-wrap gap-x-6 gap-y-2">
+                            <label class="flex items-center text-xs text-gray-700 cursor-pointer">
+                                <input type="checkbox" class="w-3 h-3 border-gray-300 rounded text-blue-600 mr-2 focus:ring-blue-500">Collapse on Desktop
+                            </label>
+                            <label class="flex items-center text-xs text-gray-700 cursor-pointer">
+                                <input type="checkbox" class="w-3 h-3 border-gray-300 rounded text-blue-600 mr-2 focus:ring-blue-500">Collapse on Mobile
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FILTER VALUES SECTION -->
+                <div id="filter-values-section" class="border border-gray-200 rounded-lg p-4 space-y-3 hidden">
+                    <h3 class="font-bold text-gray-800 text-sm">Filter Values</h3>
+
+                    <div class="space-y-1">
+                        <label class="block text-xs font-medium text-gray-600">Select filter value</label>
+                        <div class="relative">
+                            <select id="filter-value-select" class="w-full border border-gray-300 rounded-md py-1.5 px-3 text-sm appearance-none bg-white focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                <option value="all">All Filter Values</option>
+                                <option value="manually">Manually</option>
+                            </select>
+                            <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400">
+                                <i class="fas fa-chevron-down text-xs"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Filter Mode with Radio Buttons -->
+                    <div id="merged-type-container" class="space-y-1 hidden">
+                        <label class="block text-xs font-medium text-gray-600">Filter mode</label>
+                        <div class="flex items-center space-x-6 py-1">
+                            <label class="flex items-center text-xs text-gray-700 cursor-pointer">
+                                <input type="radio" name="filter-mode" value="default" checked class="w-4 h-4 text-zinc-800 border-gray-300 focus:ring-zinc-800"><span class="ml-2">Default</span>
+                            </label>
+                            <label class="flex items-center text-xs text-gray-700 cursor-pointer" id="merged-radio-label">
+                                <input type="radio" name="filter-mode" value="merged" class="w-4 h-4 text-zinc-800 border-gray-300 focus:ring-zinc-800"><span class="ml-2">Merged Group</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <p id="filter-description" class="text-[11px] text-gray-500 leading-relaxed hidden"></p>
+
+                    <div class="space-y-1 pt-1">
+                        <label class="block text-xs font-medium text-gray-600 flex items-center">Option select
+                            <i class="fas fa-question-circle ml-1 text-gray-400 text-[10px]"></i>
+                        </label>
+                        <div class="relative">
+                            <select id="option-select" class="w-full border border-gray-300 rounded-md py-1.5 px-3 text-sm appearance-none bg-white focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                <option value="multiple">Multiple</option>
+                                <option value="single">Single</option>
+                            </select>
+                            <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400">
+                                <i class="fas fa-chevron-down text-xs"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="hide-merged-container" class="flex items-center text-xs text-gray-700 cursor-pointer -mt-1 pb-1 hidden">
+                        <input id="hide-merged-values" type="checkbox" class="w-3 h-3 border-gray-300 rounded text-blue-600 mr-2 focus:ring-blue-500"> Hidden Merged Group Values
+                    </div>
+
+                    <div id="match-options" class="flex items-center space-x-6 py-1">
+                        <span class="text-xs font-medium text-gray-600">Result must match:</span>
+                        <div class="flex items-center space-x-4">
+                            <label class="flex items-center text-xs text-gray-700 cursor-pointer">
+                                <input type="radio" name="match" class="w-4 h-4 text-zinc-800 border-gray-300 focus:ring-zinc-800"><span class="ml-2">All values</span>
+                            </label>
+                            <label class="flex items-center text-xs text-gray-700 cursor-pointer">
+                                <input type="radio" name="match" checked class="w-4 h-4 text-zinc-800 border-gray-300 focus:ring-zinc-800"><span class="ml-2">Any value</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="dynamic-config-area" class="space-y-3"></div>
+                    <p id="group-name-warning" class="hidden text-[11px] text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2"></p>
+
+                    <div id="remaining-values-box-container" class="hidden space-y-2 pt-2">
+                        <div class="flex justify-between items-center">
+                            <label class="text-xs font-semibold text-gray-700 uppercase tracking-wider">Remaining Source Values</label>
+                            <span class="text-[10px] text-gray-400" id="remaining-count">0 values</span>
+                        </div>
+                        <div id="remaining-values-list" class="border border-gray-200 rounded-md bg-white max-h-64 overflow-y-auto divide-y divide-gray-100 shadow-inner"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT PANEL: Preview -->
+            <div class="w-1/3 border-l border-gray-200 bg-gray-50 flex flex-col">
+                <div class="px-4 py-3 flex items-center justify-center border-b border-gray-100 bg-white relative">
+                    <span class="text-xs font-bold text-gray-700">Preview</span>
+                    <button class="text-xs text-blue-600 font-medium absolute right-4 hover:text-blue-700">Hide</button>
+                </div>
+                <div class="p-4 flex-1 overflow-y-auto preview-container">
+                    <div class="bg-[#f0f7ff] border border-[#d6eaff] rounded-lg p-3 flex items-start space-x-3 relative mb-6">
+                        <i class="fas fa-info-circle text-blue-600 mt-0.5 text-xs"></i>
+                        <div class="text-[11px] text-[#2c4e7d] pr-4">
+                            Got a design request? <a href="#" class="text-blue-600 underline">Let us know</a> or
+                            <a href="#" class="text-blue-600 underline">Book a call with us!</a>
+                        </div>
+                        <button class="absolute top-2 right-2 text-gray-400 hover:text-gray-600">
+                            <i class="fas fa-times text-[10px]"></i>
+                        </button>
+                    </div>
+                    <div id="preview-box" class="bg-white border border-gray-200 rounded p-4 min-h-[320px] shadow-sm overflow-x-hidden"></div>
+                    <div class="mt-4 space-y-1">
+                        <p class="text-[11px] text-gray-500">Note: The preview is for display purposes only.</p>
+                        <i class="fas fa-question-circle text-gray-400 text-[12px]"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="px-4 py-3 border-t border-gray-200 flex justify-end space-x-2 bg-gray-50">
+            <button class="px-4 py-1.5 border border-gray-300 rounded text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors">Cancel</button>
+            <button class="px-4 py-1.5 bg-zinc-800 border border-zinc-800 rounded text-sm font-medium text-white hover:bg-zinc-700 transition-colors">Save</button>
+        </div>
+    </div>
+
+    <!-- STOREFRONT VIEW -->
+    <div id="storefront-view" class="hidden w-full max-w-[1500px] bg-white rounded-xl custom-shadow overflow-hidden border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-white">
+            <div>
+                <div class="text-lg font-semibold text-gray-900">StoreFront</div>
+                <div id="storefront-subtitle" class="text-xs text-gray-500">Previewing current filter setup</div>
+            </div>
+            <button id="storefront-refresh" class="px-3 py-2 text-sm font-medium text-zinc-700 border border-gray-300 rounded-md bg-white hover:bg-gray-50 transition-colors">Refresh</button>
+        </div>
+        <div class="grid grid-cols-[320px_minmax(0,1fr)] min-h-[760px]">
+            <aside id="storefront-filter-bar" class="border-r border-gray-200 bg-white p-5 overflow-y-auto"></aside>
+            <main class="bg-white p-5 overflow-y-auto">
+                <div class="flex items-center justify-between mb-5 text-sm">
+                    <div id="storefront-product-count" class="text-gray-700 font-medium">217 Products</div>
+                    <div class="flex gap-6 text-gray-700">
+                        <span>Show 12 <i class="fas fa-chevron-down text-[10px] ml-1"></i></span>
+                        <span>Alphabetically, A-Z <i class="fas fa-chevron-down text-[10px] ml-1"></i></span>
+                    </div>
+                </div>
+                <div id="storefront-active-filters" class="flex flex-wrap items-center gap-2 mb-6 text-sm"></div>
+                <div id="storefront-grid" class="grid grid-cols-4 gap-8"></div>
+            </main>
+        </div>
+    </div>
+
+    <input type="hidden" id="source-select" value="Tag">
+
+    <script>
+        // ==================== DOM ELEMENTS ====================
+        const filterSelect = document.getElementById('filter-value-select');
+        const filterModeRadios = document.getElementsByName('filter-mode');
+        const mergedTypeContainer = document.getElementById('merged-type-container');
+        const optionSelect = document.getElementById('option-select');
+        const description = document.getElementById('filter-description');
+        const matchOptions = document.getElementById('match-options');
+        const hideMergedContainer = document.getElementById('hide-merged-container');
+        const hideMergedCheckbox = document.getElementById('hide-merged-values');
+        const labelInput = document.getElementById('label-field');
+        const previewBox = document.getElementById('preview-box');
+        const remainingContainer = document.getElementById('remaining-values-box-container');
+        const remainingList = document.getElementById('remaining-values-list');
+        const dynamicConfigArea = document.getElementById('dynamic-config-area');
+        const groupNameWarning = document.getElementById('group-name-warning');
+        const hideValueNameCheckbox = document.getElementById('hide-value-name');
+        const hideValueNameContainer = document.getElementById('hide-value-name-container');
+        const sourceDropdownBtn = document.getElementById('source-dropdown-btn');
+        const sourceDropdownMenu = document.getElementById('source-dropdown-menu');
+        const sourceDropdownLabel = document.getElementById('source-dropdown-label');
+        const sourceSelectEl = document.getElementById('source-select');
+        const labelContainer = document.getElementById('label-container');
+        const labelTooltipContainer = document.getElementById('label-tooltip-container');
+        const labelTooltipField = document.getElementById('label-tooltip-field');
+        const labelCounter = document.getElementById('label-counter');
+        const labelTooltipCounter = document.getElementById('label-tooltip-counter');
+        const advancedOptions = document.getElementById('advanced-options');
+        const filterValuesSection = document.getElementById('filter-values-section');
+        const displayTypeSelect = document.getElementById('display-type-select');
+        const hideNameToggle = document.getElementById('hide-name-toggle');
+        const hideNameKnob = document.getElementById('hide-name-knob');
+        const enterStorefrontBtn = document.getElementById('enter-storefront-btn');
+        const backFilterBtn = document.getElementById('back-filter-btn');
+        const setupView = document.getElementById('setup-view');
+        const storefrontView = document.getElementById('storefront-view');
+        const storefrontFilterBar = document.getElementById('storefront-filter-bar');
+        const storefrontGrid = document.getElementById('storefront-grid');
+        const storefrontActiveFilters = document.getElementById('storefront-active-filters');
+        const storefrontSubtitle = document.getElementById('storefront-subtitle');
+
+        // ==================== STATE ====================
+        const storefrontState = { 
+            selected: new Set(), 
+            searchTerm: '',
+            pendingSearchTerm: ''
+        };
+        let searchRenderTimeout = null;
+
+        // ==================== UTILITY FUNCTIONS ====================
+        function updateLabelCounter() {
+            const len = labelInput.value.length;
+            labelCounter.textContent = len + '/40';
+        }
+        function updateTooltipCounter() {
+            const len = labelTooltipField.value.length;
+            labelTooltipCounter.textContent = len + '/40';
+        }
+        function tooltipIconHtml() {
+            const text = labelTooltipField.value.trim();
+            if (!text) return '';
+            const safe = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            return `<span class="sf-tooltip-icon" data-tooltip="${safe}">!</span>`;
+        }
+        function getFilterModeValue() {
+            for (const radio of filterModeRadios) {
+                if (radio.checked) return radio.value;
+            }
+            return 'default';
+        }
+
+        function getStorefrontConfig() {
+            return {
+                source: sourceSelectEl.value,
+                label: labelInput.value || 'Label',
+                isMerged: isMergedMode(),
+                mode: optionSelect.value,
+                displayType: displayTypeSelect.value
+            };
+        }
+
+        function isMergedMode() {
+            return filterSelect.value === 'manually' && getFilterModeValue() === 'merged';
+        }
+
+        function isColorMode() {
+            return isMergedMode() && displayTypeSelect.value === 'Color Swatch';
+        }
+
+        function isImageMode() {
+            return isMergedMode() && displayTypeSelect.value === 'Image Swatch';
+        }
+
+        function isVisualSwatchMode() {
+            return isMergedMode() && ['Color Swatch', 'Image Swatch'].includes(displayTypeSelect.value);
+        }
+
+        function getGroupData() {
+            return [...document.querySelectorAll('.group-row')].map((g, idx) => {
+                const groupName = g.querySelector('.group-name-input')?.value?.trim() || `Group ${idx + 1}`;
+                const values = [...g.querySelectorAll('.value-row')].map((row, vidx) => {
+                    const valueName = row.querySelector('.value-input')?.value?.trim() || '';
+                    if (!valueName) return null;
+                    return {
+                        name: valueName,
+                        color: row.dataset.color || '#d1d5db',
+                        image: row.dataset.image || ''
+                    };
+                }).filter(v => v !== null);
+                return { groupName, values, color: g.dataset.color || '#d1d5db' };
+            }).filter(g => g.values.length > 0 || g.groupName);
+        }
+
+        function getAssignedValues() {
+            const assigned = new Set();
+            document.querySelectorAll('.value-input').forEach(input => {
+                if (input.value.trim()) assigned.add(input.value.trim().toLowerCase());
+            });
+            return assigned;
+        }
+
+        function normalizeColor(value) {
+            const v = (value || '').trim();
+            if (/^#[0-9a-fA-F]{6}$/.test(v)) return v;
+            if (/^#[0-9a-fA-F]{3}$/.test(v)) return '#' + v[1] + v[1] + v[2] + v[2] + v[3] + v[3];
+            return null;
+        }
+
+        // ==================== SOURCE DATA ====================
+        const mergedDisabledSources = new Set(['Price', 'Availability']);
+        
+        const defaultSwatchPalette = ['#111827', '#6b7280', '#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4',
+            '#3b82f6', '#8b5cf6', '#ec4899', '#a16207', '#84cc16', '#14b8a6', '#f43f5e', '#7c3aed', '#0f766e',
+            '#1d4ed8', '#ea580c', '#4b5563', '#be123c'
+        ];
+        
+        let sourceValuesData = ['Cotton', 'Polyester', 'Wool', 'Silk', 'Linen', 'Denim', 'Leather', 'Nylon', 'Satin',
+            'Velvet', 'Cashmere', 'Spandex', 'Rayon', 'Canvas', 'Fleece', 'Jersey', 'Tweed', 'Suede', 'Mesh', 'Viscose'
+        ].map((v, i) => ({
+            name: v,
+            included: true,
+            color: defaultSwatchPalette[i % defaultSwatchPalette.length],
+            image: ''
+        }));
+
+        const previewCountDataset = [3, 5, 15, 35, 100, 160, 1001, 5023, 10034, 61002, 200001, 941321, 450000, 789123, 12500, 88000];
+
+        function getRandomCount(isSmall = false) {
+            if (isSmall) {
+                const smallOnes = previewCountDataset.filter(n => n < 1000);
+                return smallOnes[Math.floor(Math.random() * smallOnes.length)];
+            }
+            return previewCountDataset[Math.floor(Math.random() * previewCountDataset.length)];
+        }
+
+        function formatCount(num) {
+            return num.toLocaleString();
+        }
+
+        // ==================== ANALYSIS FUNCTIONS ====================
+        function analyzeGroupSelection(gi) {
+            const groups = getGroupData();
+            const group = groups[gi];
+            if (!group || group.values.length === 0) return { isIndeterminate: false, allSelected: false, noneSelected: true, selectedCount: 0, totalCount: 0 };
+
+            const groupKey = `g:${gi}`;
+            const totalChildren = group.values.length;
+            
+            let selectedCount = 0;
+            group.values.forEach((_, vi) => {
+                if (storefrontState.selected.has(`c:${gi}:${vi}`)) selectedCount++;
+            });
+
+            const isGroupSelected = storefrontState.selected.has(groupKey);
+            const allChildrenSelected = selectedCount === totalChildren;
+            const noChildrenSelected = selectedCount === 0;
+            
+            // Indeterminate: some but not all children selected, OR group was selected but not all children match
+            const isIndeterminate = (selectedCount > 0 && selectedCount < totalChildren) || 
+                                   (isGroupSelected && !allChildrenSelected);
+
+            return {
+                isIndeterminate,
+                allSelected: allChildrenSelected || (isGroupSelected && !isIndeterminate),
+                noneSelected: noChildrenSelected && !isGroupSelected,
+                selectedCount,
+                totalCount: totalChildren
+            };
+        }
+
+        function analyzeMultipleModeSelection() {
+            const groups = getGroupData();
+            const analysis = [];
+
+            groups.forEach((group, gi) => {
+                const groupKey = `g:${gi}`;
+                const selectionInfo = analyzeGroupSelection(gi);
+
+                const children = group.values.map((v, vi) => ({
+                    key: `c:${gi}:${vi}`,
+                    name: v.name,
+                    selected: storefrontState.selected.has(`c:${gi}:${vi}`)
+                }));
+
+                let displayMode = 'none';
+                let selectedChildren = [];
+
+                if (selectionInfo.allSelected) {
+                    displayMode = 'group';
+                } else if (selectionInfo.isIndeterminate) {
+                    displayMode = 'values';
+                    selectedChildren = children.filter(c => c.selected);
+                } else if (selectionInfo.selectedCount > 0) {
+                    displayMode = 'values';
+                    selectedChildren = children.filter(c => c.selected);
+                }
+
+                analysis.push({
+                    index: gi,
+                    groupName: group.groupName,
+                    color: group.color,
+                    displayMode,
+                    selectedChildren,
+                    isIndeterminate: selectionInfo.isIndeterminate,
+                    allChildrenSelected: selectionInfo.allSelected,
+                    selectedCount: selectionInfo.selectedCount,
+                    totalCount: selectionInfo.totalCount
+                });
+            });
+
+            return analysis;
+        }
+
+        // ==================== SEARCH FUNCTIONALITY ====================
+        function matchesSearch(term, itemName) {
+            if (!term) return true;
+            return itemName.toLowerCase().includes(term.toLowerCase());
+        }
+
+        // ==================== RENDER STOREFRONT ====================
+        function renderStorefront(preserveSearchFocus = false) {
+            const cfg = getStorefrontConfig();
+            const groups = getGroupData();
+            const searchTerm = storefrontState.searchTerm.toLowerCase();
+            
+            storefrontSubtitle.textContent = `${cfg.label} • ${cfg.source} • ${cfg.isMerged ? 'Merged Group' : 'Default'}`;
+            
+            // Build filter bar HTML with new layout
+            let filterBarHtml = `<div class="space-y-5">
+                <div>
+                    <!-- Changed heading to "Filter" -->
+                    <div class="text-2xl font-medium text-gray-900 mb-6">Filter</div>
+                    
+                    <!-- Collection Search Bar -->
+                    <div class="relative mb-5">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input class="w-full border border-gray-300 rounded-md py-3 pl-10 pr-3 text-sm bg-gray-50" value="" placeholder="Search in this collection" readonly>
+                    </div>
+                    
+                    <!-- Separator after collection search -->
+                    <div class="border-t border-gray-200 my-5"></div>
+                </div>`;
+
+            // Add Merged Group section header and search bar
+            if (cfg.isMerged) {
+                filterBarHtml += `
+                <div class="mb-4">
+                    <div class="text-sm font-semibold text-gray-900 mb-3">${cfg.mode === 'multiple' ? 'Merged Group' : cfg.label}${tooltipIconHtml()}</div>
+                    
+                    <!-- Filter Search Bar -->
+                    <div class="relative mb-4">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                        <input type="text" 
+                               id="storefront-search-input" 
+                               class="sf-search-input w-full border border-gray-300 rounded-md py-2.5 pl-9 pr-8 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500" 
+                               placeholder="Search in this Filter"
+                               value="${storefrontState.searchTerm}"
+                               autocomplete="off"
+                               spellcheck="false">
+                        <button id="storefront-search-clear" 
+                                class="search-clear-btn absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600"
+                                style="${!storefrontState.searchTerm ? 'opacity:0;pointer-events:none' : ''}">
+                            <i class="fas fa-times text-xs"></i>
+                        </button>
+                    </div>
+                </div>`;
+            } else {
+                filterBarHtml += `
+                <div class="mb-4">
+                    <div class="text-sm font-semibold text-gray-900 mb-3">${cfg.label}${tooltipIconHtml()}</div>
+                </div>`;
+            }
+
+            filterBarHtml += `<div class="space-y-4" id="storefront-dynamic-filters"></div></div>`;
+            
+            storefrontFilterBar.innerHTML = filterBarHtml;
+
+            const filterArea = storefrontFilterBar.querySelector('#storefront-dynamic-filters');
+            const display = cfg.displayType;
+            const hideChildren = cfg.isMerged && hideMergedCheckbox.checked;
+            const isSingleMode = cfg.mode === 'single';
+
+            let html = '';
+            let hasVisibleItems = false;
+            let allGroupHtml = '';
+
+            // Render Groups
+            groups.forEach((g, gi) => {
+                const groupKey = `g:${gi}`;
+                
+                // Check if group matches search
+                const groupMatchesSearch = !searchTerm || 
+                    matchesSearch(searchTerm, g.groupName) ||
+                    g.values.some(v => matchesSearch(searchTerm, v.name));
+
+                if (!groupMatchesSearch && cfg.isMerged) return;
+
+                hasVisibleItems = true;
+
+                // Get selection info for indeterminate state
+                const selectionInfo = analyzeGroupSelection(gi);
+                const isSwatch = display === 'Color Swatch' || display === 'Image Swatch';
+                
+                // Determine visual states
+                let showAsGroup = false;
+                let showAsValues = false;
+                let selectedValueIndices = new Set();
+
+                if (cfg.isMerged && cfg.mode === 'multiple') {
+                    const analysis = analyzeMultipleModeSelection().find(a => a.index === gi);
+                    if (analysis) {
+                        showAsGroup = analysis.displayMode === 'group' && !analysis.isIndeterminate;
+                        showAsValues = analysis.displayMode === 'values' || analysis.isIndeterminate;
+                        analysis.selectedChildren.forEach(sc => {
+                            const idx = g.values.findIndex(v => v.name === sc.name);
+                            if (idx >= 0) selectedValueIndices.add(idx);
+                        });
+                    }
+                } else if (isSingleMode) {
+                    showAsGroup = selectionInfo.allSelected || storefrontState.selected.has(groupKey);
+                }
+
+                // Build group HTML without border, using separator
+                allGroupHtml += `<div class="sf-group-container py-3 ${gi > 0 ? 'border-t border-gray-100' : ''}" data-group-index="${gi}">`;
+
+                // Parent row with proper checkbox/indeterminate state
+                if (isSwatch) {
+                    const swatchClasses = [
+                        'sf-group-swatch w-8 h-8 rounded-full border-2 transition-all',
+                        selectionInfo.allSelected ? 'ring-4 ring-zinc-900/20 border-zinc-900 scale-110' : 'border-white shadow'
+                    ].join(' ');
+                    
+                    allGroupHtml += `<div class="flex items-center gap-3 mb-3">
+                        <button data-key="${groupKey}" data-type="group" class="${swatchClasses}" style="background:${g.color}"></button>
+                        <span class="text-xs font-bold text-gray-900">${g.groupName}</span>
+                    </div>`;
+                } else {
+                    // Checkbox logic: checked / unchecked / indeterminate (-)
+                    let checkboxHtml = '';
+                    if (selectionInfo.isIndeterminate) {
+                        // Show minus sign
+                        checkboxHtml = `<span class="w-4 h-4 rounded border flex-shrink-0 bg-zinc-900 border-zinc-900 checkbox-indeterminate relative text-white"></span>`;
+                    } else if (selectionInfo.allSelected) {
+                        checkboxHtml = `<span class="w-4 h-4 rounded border flex-shrink-0 bg-zinc-900 border-zinc-900"></span>`;
+                    } else {
+                        checkboxHtml = `<span class="w-4 h-4 rounded border flex-shrink-0 border-gray-300 bg-white"></span>`;
+                    }
+                    
+                    allGroupHtml += `<button data-key="${groupKey}" data-type="group" class="flex items-center gap-2 text-left w-full mb-2">
+                        ${checkboxHtml}
+                        <span class="text-xs font-bold text-gray-900">${g.groupName}</span>
+                    </button>`;
+                }
+
+                // Render children based on mode
+                if (!hideChildren) {
+                    if (isSingleMode) {
+                        // SINGLE MODE: Children faded, not clickable
+                        if (isSwatch) {
+                            allGroupHtml += `<div class="grid grid-cols-4 gap-2 ml-1">`;
+                            g.values.forEach((v, vi) => {
+                                const childMatchesSearch = !searchTerm || matchesSearch(searchTerm, v.name);
+                                const cBg = display === 'Image Swatch' ? (v.image ?
+                                    `style="background-image:url(${v.image});background-size:cover;"` :
+                                    'style="background:#f3f4f6"') : `style="background:${v.color}"`;
+                                
+                                allGroupHtml += `
+                                    <div class="sf-child-item child-faded ${childMatchesSearch ? '' : 'filter-item-hidden'}" title="${v.name}">
+                                        <div class="w-10 h-10 rounded-full border-2 border-white shadow opacity-60" ${cBg}></div>
+                                        ${display !== 'Color Swatch' ? `<span class="text-[10px] text-gray-500 mt-1 block text-center truncate">${v.name}</span>` : ''}
+                                    </div>`;
+                            });
+                            allGroupHtml += `</div>`;
+                        } else {
+                            allGroupHtml += `<div class="space-y-2 ml-6">`;
+                            g.values.forEach((v, vi) => {
+                                const childMatchesSearch = !searchTerm || matchesSearch(searchTerm, v.name);
+                                allGroupHtml += `
+                                    <div class="sf-child-item child-faded flex items-center gap-2 text-xs text-gray-500 ${childMatchesSearch ? '' : 'filter-item-hidden'}">
+                                        <span class="w-3.5 h-3.5 rounded border border-gray-200 bg-gray-100 opacity-50"></span>
+                                        <span>${v.name}</span>
+                                    </div>`;
+                            });
+                            allGroupHtml += `</div>`;
+                        }
+                    } else if (cfg.mode === 'multiple') {
+                        // MULTIPLE MODE: Interactive children
+                        if (isSwatch) {
+                            allGroupHtml += `<div class="grid grid-cols-4 gap-2 ml-1">`;
+                            g.values.forEach((v, vi) => {
+                                const childKey = `c:${gi}:${vi}`;
+                                const childActive = storefrontState.selected.has(childKey);
+                                const cBg = display === 'Image Swatch' ? (v.image ?
+                                    `style="background-image:url(${v.image});background-size:cover;"` :
+                                    'style="background:#f3f4f6"') : `style="background:${v.color}"`;
+                                
+                                const childMatchesSearch = !searchTerm || matchesSearch(searchTerm, v.name);
+                                const shouldShowAsValue = showAsValues || !showAsGroup;
+                                
+                                allGroupHtml += `
+                                    <button data-key="${childKey}" data-type="child" 
+                                            class="sf-child-btn w-10 h-10 rounded-full border-2 transition-all ${childActive ? 'ring-4 ring-zinc-900/15 border-zinc-900' : 'border-white shadow'} ${childMatchesSearch ? '' : 'filter-item-hidden'} ${shouldShowAsValue || childActive ? '' : 'opacity-40'}" 
+                                            ${cBg} title="${v.name}"></button>`;
+                            });
+                            allGroupHtml += `</div>`;
+                        } else {
+                            allGroupHtml += `<div class="space-y-2 ml-6">`;
+                            g.values.forEach((v, vi) => {
+                                const childKey = `c:${gi}:${vi}`;
+                                const childActive = storefrontState.selected.has(childKey);
+                                const childMatchesSearch = !searchTerm || matchesSearch(searchTerm, v.name);
+                                const shouldShowAsValue = showAsValues || !showAsGroup;
+                                
+                                allGroupHtml += `
+                                    <button data-key="${childKey}" data-type="child" 
+                                            class="sf-child-btn flex items-center gap-2 text-left text-xs ${childActive ? 'text-gray-900 font-medium' : 'text-gray-600'} ${childMatchesSearch ? '' : 'filter-item-hidden'} ${shouldShowAsValue || childActive ? '' : 'opacity-40'}">
+                                        <span class="w-3.5 h-3.5 rounded border ${childActive ? 'bg-zinc-800 border-zinc-800' : 'border-gray-300 bg-white'}"></span>
+                                        <span>${v.name}</span>
+                                    </button>`;
+                            });
+                            allGroupHtml += `</div>`;
+                        }
+                    }
+                }
+
+                allGroupHtml += `</div>`;
+            });
+
+            html += allGroupHtml;
+
+            // Separator before remaining values
+            if (cfg.isMerged && hasVisibleItems) {
+                html += `<div class="border-t border-gray-200 my-4"></div>`;
+            }
+
+            // Render Remaining Values
+            if (cfg.isMerged) {
+                const assigned = getAssignedValues();
+                const remaining = sourceValuesData.filter(item => 
+                    !assigned.has(item.name.toLowerCase()) && item.included
+                );
+                
+                const filteredRemaining = searchTerm 
+                    ? remaining.filter(item => matchesSearch(searchTerm, item.name))
+                    : remaining;
+
+                if (filteredRemaining.length > 0) {
+                    hasVisibleItems = true;
+                    html += `<div class="pt-2 space-y-2 sf-remaining-container">`;
+                    
+                    filteredRemaining.forEach((item) => {
+                        const originalIndex = sourceValuesData.indexOf(item);
+                        const remKey = `r:${originalIndex}`;
+                        const active = storefrontState.selected.has(remKey);
+                        
+                        if (display === 'Color Swatch' || display === 'Image Swatch') {
+                            const bg = display === 'Image Swatch' ? (item.image ?
+                                `style="background-image:url(${item.image});background-size:cover;"` :
+                                'style="background:#f3f4f6"') : `style="background:${item.color}"`;
+                            html += `
+                                <div class="flex items-center gap-3 p-2 sf-remaining-item">
+                                    <button data-key="${remKey}" data-type="rem" 
+                                            class="w-8 h-8 rounded-full border-2 transition-all ${active ? 'ring-4 ring-zinc-900/20 border-zinc-900 scale-110' : 'border-white shadow'}" 
+                                            ${bg}></button>
+                                    <span class="text-xs font-medium text-gray-700">${item.name}</span>
+                                </div>`;
+                        } else {
+                            html += `
+                                <button data-key="${remKey}" data-type="rem" 
+                                        class="flex items-center gap-2 text-left w-full p-1 sf-remaining-item">
+                                    <span class="w-4 h-4 rounded border ${active ? 'bg-zinc-900 border-zinc-900' : 'border-gray-300 bg-white'}"></span>
+                                    <span class="text-xs text-gray-700">${item.name}</span>
+                                </button>`;
+                        }
+                    });
+                    
+                    html += `</div>`;
+                }
+            }
+
+            // No results message
+            if (cfg.isMerged && searchTerm && !hasVisibleItems) {
+                html += `<div class="no-results-msg animate-fade-in">
+                    <i class="fas fa-search text-gray-300 text-xl mb-2 block"></i>
+                    No matching values for "${searchTerm}"
+                </div>`;
+            }
+
+            // ALL FILTER VALUES mode — render flat list from sourceValuesData
+            if (filterSelect.value === 'all') {
+                html = '';
+                sourceValuesData.filter(i => i.included).forEach((item, idx) => {
+                    const remKey = `a:${idx}`;
+                    const active = storefrontState.selected.has(remKey);
+                    html += `
+                        <button data-key="${remKey}" data-type="rem"
+                                class="flex items-center gap-2 text-left w-full p-1 sf-remaining-item">
+                            <span class="w-4 h-4 rounded border ${active ? 'bg-zinc-900 border-zinc-900' : 'border-gray-300 bg-white'}"></span>
+                            <span class="text-xs text-gray-700">${item.name}</span>
+                        </button>`;
+                });
+            }
+
+            filterArea.innerHTML = html;
+
+            // Render product grid
+            storefrontGrid.innerHTML = Array.from({ length: 8 }).map((_, i) =>
+                `<div class="group">
+                    <div class="bg-gray-100 rounded-xl aspect-[3/4] mb-3 flex items-center justify-center text-gray-400">
+                        <i class="fas fa-image text-3xl"></i>
+                    </div>
+                    <div class="text-sm font-medium text-gray-900">Product ${i+1}</div>
+                    <div class="text-xs text-gray-500">$${(i+1)*12}</div>
+                </div>`
+            ).join('');
+
+            updateStorefrontActiveLine();
+            bindStorefrontClicks();
+            bindSearchEvents();
+
+            // Restore focus to search input if needed
+            if (preserveSearchFocus) {
+                setTimeout(() => {
+                    const searchInput = document.getElementById('storefront-search-input');
+                    if (searchInput) {
+                        searchInput.focus();
+                        // Set cursor to end
+                        const len = searchInput.value.length;
+                        searchInput.setSelectionRange(len, len);
+                    }
+                }, 10);
+            }
+        }
+
+        // ==================== SEARCH EVENTS WITH DEBOUNCE ====================
+        function bindSearchEvents() {
+            const searchInput = document.getElementById('storefront-search-input');
+            const clearBtn = document.getElementById('storefront-search-clear');
+            
+            if (!searchInput) return;
+
+            // Store reference to input for focus restoration
+            let lastCursorPosition = 0;
+
+            searchInput.addEventListener('focus', () => {
+                lastCursorPosition = searchInput.selectionStart || 0;
+            });
+
+            searchInput.addEventListener('input', (e) => {
+                // Save cursor position before render
+                lastCursorPosition = searchInput.selectionStart || searchInput.value.length;
+                
+                // Update state immediately
+                storefrontState.pendingSearchTerm = e.target.value;
+                
+                // Toggle clear button visibility
+                if (clearBtn) {
+                    clearBtn.style.opacity = e.target.value ? '1' : '0';
+                    clearBtn.style.pointerEvents = e.target.value ? 'auto' : 'none';
+                }
+
+                // Clear existing timeout
+                if (searchRenderTimeout) {
+                    clearTimeout(searchRenderTimeout);
+                }
+
+                // Use a very short debounce (50ms) to allow continuous typing
+                // but still provide responsive filtering
+                searchRenderTimeout = setTimeout(() => {
+                    storefrontState.searchTerm = storefrontState.pendingSearchTerm;
+                    renderStorefront(true); // Pass flag to preserve focus
+                }, 50);
+            });
+
+            // Handle keyboard navigation properly
+            searchInput.addEventListener('keydown', (e) => {
+                // Allow normal typing behavior
+                if (e.key !== 'Enter') return;
+                e.preventDefault();
+                // On Enter, force immediate render
+                if (searchRenderTimeout) {
+                    clearTimeout(searchRenderTimeout);
+                }
+                storefrontState.searchTerm = searchInput.value;
+                renderStorefront(true);
+            });
+
+            if (clearBtn) {
+                clearBtn.addEventListener('click', () => {
+                    storefrontState.searchTerm = '';
+                    storefrontState.pendingSearchTerm = '';
+                    searchInput.value = '';
+                    clearBtn.style.opacity = '0';
+                    clearBtn.style.pointerEvents = 'none';
+                    searchInput.focus();
+                    renderStorefront(true);
+                });
+            }
+        }
+
+        // ==================== ACTIVE FILTERS LINE ====================
+        function updateStorefrontActiveLine() {
+            const cfg = getStorefrontConfig();
+            const groups = getGroupData();
+            const assigned = getAssignedValues();
+            const remaining = sourceValuesData.filter(item => 
+                !assigned.has(item.name.toLowerCase()) && item.included
+            );
+
+            let chipsHtml = '';
+
+            if (storefrontState.selected.size > 0) {
+                chipsHtml += `<button id="storefront-clear-all" class="text-gray-900 font-medium mr-4 hover:underline text-sm">Clear All</button>`;
+            }
+
+            if (cfg.mode === 'single') {
+                storefrontState.selected.forEach(key => {
+                    const parts = key.split(':');
+                    const type = parts[0];
+                    let label = '';
+                    
+                    if (type === 'g') {
+                        label = groups[parts[1]]?.groupName;
+                    } else if (type === 'r') {
+                        label = sourceValuesData[parts[1]]?.name;
+                    }
+
+                    if (label) {
+                        chipsHtml += `
+                            <div class="sf-chip bg-gray-100 text-gray-800 text-xs px-3 py-1.5 rounded-full border border-gray-200 flex items-center gap-2">
+                                <span class="font-bold">${label.toUpperCase()}</span>
+                                <button onclick="storefrontState.selected.delete('${key}'); renderStorefront();" 
+                                        class="text-gray-400 hover:text-gray-600">
+                                    <i class="fas fa-times text-[10px]"></i>
+                                </button>
+                            </div>`;
+                    }
+                });
+            } else {
+                const displayedValues = new Map();
+                const analysis = analyzeMultipleModeSelection();
+
+                analysis.forEach((groupAnalysis) => {
+                    const groupKey = `g:${groupAnalysis.index}`;
+                    
+                    if (groupAnalysis.isIndeterminate || groupAnalysis.displayMode === 'values') {
+                        // Show individual values when indeterminate or partial
+                        const valuesToShow = groupAnalysis.selectedChildren;
+                        
+                        valuesToShow.forEach(child => {
+                            const valueKeyLower = child.name.toLowerCase();
+                            if (!displayedValues.has(valueKeyLower)) {
+                                displayedValues.set(valueKeyLower, true);
+                                chipsHtml += `
+                                    <div class="sf-chip bg-gray-100 text-gray-800 text-xs px-3 py-1.5 rounded-full border border-gray-200 flex items-center gap-2">
+                                        <span class="font-bold">${child.name.toUpperCase()}</span>
+                                        <button onclick="storefrontState.selected.delete('${child.key}'); renderStorefront();" 
+                                                class="text-gray-400 hover:text-gray-600">
+                                            <i class="fas fa-times text-[10px]"></i>
+                                        </button>
+                                    </div>`;
+                            }
+                        });
+                    } else if (groupAnalysis.displayMode === 'group' && !groupAnalysis.isIndeterminate) {
+                        chipsHtml += `
+                            <div class="sf-chip bg-gray-100 text-gray-800 text-xs px-3 py-1.5 rounded-full border border-gray-200 flex items-center gap-2">
+                                <span class="font-bold">${groupAnalysis.groupName.toUpperCase()}</span>
+                                <button onclick="storefrontState.selected.delete('${groupKey}'); renderStorefront();" 
+                                        class="text-gray-400 hover:text-gray-600">
+                                    <i class="fas fa-times text-[10px]"></i>
+                                </button>
+                            </div>`;
+                    }
+                });
+
+                // Remaining values
+                remaining.forEach((item) => {
+                    const fullIndex = sourceValuesData.indexOf(item);
+                    const remKey = `r:${fullIndex}`;
+                    if (storefrontState.selected.has(remKey)) {
+                        const valueKeyLower = item.name.toLowerCase();
+                        if (!displayedValues.has(valueKeyLower)) {
+                            displayedValues.set(valueKeyLower, true);
+                            chipsHtml += `
+                                <div class="sf-chip bg-gray-100 text-gray-800 text-xs px-3 py-1.5 rounded-full border border-gray-200 flex items-center gap-2">
+                                    <span class="font-bold">${item.name.toUpperCase()}</span>
+                                    <button onclick="storefrontState.selected.delete('${remKey}'); renderStorefront();" 
+                                            class="text-gray-400 hover:text-gray-600">
+                                        <i class="fas fa-times text-[10px]"></i>
+                                    </button>
+                                </div>`;
+                        }
+                    }
+                });
+            }
+
+            storefrontActiveFilters.innerHTML = chipsHtml;
+            
+            const clearBtn = document.getElementById('storefront-clear-all');
+            if (clearBtn) {
+                clearBtn.onclick = () => { 
+                    storefrontState.selected.clear(); 
+                    renderStorefront(); 
+                };
+            }
+        }
+
+        // ==================== STOREFRONT CLICK HANDLING ====================
+        function bindStorefrontClicks() {
+            document.querySelectorAll('#storefront-filter-bar [data-key]').forEach(btn => {
+                btn.onclick = () => {
+                    const key = btn.dataset.key;
+                    const type = btn.dataset.type;
+                    const cfg = getStorefrontConfig();
+
+                    if (cfg.mode === 'single') {
+                        if (type === 'child') return;
+                        
+                        if (storefrontState.selected.has(key)) {
+                            storefrontState.selected.delete(key);
+                        } else {
+                            storefrontState.selected.clear();
+                            storefrontState.selected.add(key);
+                        }
+                    } else {
+                        if (type === 'group') {
+                            const [_, gi] = key.split(':').map(Number);
+                            const group = getGroupData()[gi];
+                            if (!group) return;
+                            
+                            const childKeys = group.values.map((_, vi) => `c:${gi}:${vi}`);
+                            const selectionInfo = analyzeGroupSelection(gi);
+
+                            if (selectionInfo.allSelected) {
+                                // Deselect all
+                                storefrontState.selected.delete(key);
+                                childKeys.forEach(k => storefrontState.selected.delete(k));
+                            } else {
+                                // Select all
+                                storefrontState.selected.add(key);
+                                childKeys.forEach(k => storefrontState.selected.add(k));
+                            }
+                        } else if (type === 'child') {
+                            const [_, gi, vi] = key.split(':').map(Number);
+                            const group = getGroupData()[gi];
+                            if (!group) return;
+                            
+                            const groupKey = `g:${gi}`;
+
+                            if (storefrontState.selected.has(key)) {
+                                storefrontState.selected.delete(key);
+                            } else {
+                                storefrontState.selected.add(key);
+                            }
+                            
+                            // Auto-update group state based on children
+                            const selectionInfo = analyzeGroupSelection(gi);
+                            if (selectionInfo.allSelected) {
+                                storefrontState.selected.add(groupKey);
+                            } else {
+                                storefrontState.selected.delete(groupKey);
+                            }
+                        } else if (type === 'rem') {
+                            if (storefrontState.selected.has(key)) {
+                                storefrontState.selected.delete(key);
+                            } else {
+                                storefrontState.selected.add(key);
+                            }
+                        }
+                    }
+                    
+                    renderStorefront();
+                };
+            });
+        }
+
+        // ==================== SHOW/HIDE STOREFRONT ====================
+        function showStorefront(show) {
+            setupView.classList.toggle('hidden', show);
+            storefrontView.classList.toggle('hidden', !show);
+            enterStorefrontBtn.classList.toggle('hidden', show);
+            backFilterBtn.classList.toggle('hidden', !show);
+            if (show) renderStorefront();
+        }
+
+        enterStorefrontBtn.addEventListener('click', () => showStorefront(true));
+        backFilterBtn.addEventListener('click', () => showStorefront(false));
+        document.getElementById('storefront-refresh').addEventListener('click', () => renderStorefront());
+
+        // ==================== HIDE NAME TOGGLE ====================
+        hideNameToggle.addEventListener('click', () => {
+            hideValueNameCheckbox.checked = !hideValueNameCheckbox.checked;
+            const isHidden = hideValueNameCheckbox.checked;
+
+            hideNameToggle.classList.toggle('bg-blue-600', isHidden);
+            hideNameToggle.classList.toggle('bg-gray-200', !isHidden);
+            hideNameKnob.classList.toggle('translate-x-4', isHidden);
+            hideNameKnob.classList.toggle('translate-x-0', !isHidden);
+
+            updatePreview();
+        });
+
+        // ==================== PREVIEW RENDERING ====================
+        function updatePreview() {
+            const isSingle = optionSelect.value === 'single';
+            const isMerged = isMergedMode();
+            const mainLabel = labelInput.value || 'Label';
+            const hideChildren = hideMergedCheckbox.checked && isMerged;
+            const hideNames = hideValueNameCheckbox.checked;
+            const isColorSwatchMode = isMerged && displayTypeSelect.value === 'Color Swatch';
+            const isImageSwatchMode = isMerged && displayTypeSelect.value === 'Image Swatch';
+            const isSwatchMode = isColorSwatchMode || isImageSwatchMode;
+            const isSwatchGrid = isSwatchMode && hideNames;
+            const isSwatchTextRow = isSwatchMode && !hideNames;
+            const groups = getGroupData();
+
+            let html = `
+                <div class="flex items-center text-[12px] font-bold text-gray-800 space-x-2 cursor-pointer mb-2" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('i').classList.toggle('-rotate-90')">
+                    <i class="fas fa-chevron-down text-[10px] transition-transform"></i>
+                    <span class="uppercase">${mainLabel}</span>${tooltipIconHtml()}
+                </div>
+                <div class="ml-4 space-y-2 preview-content">
+            `;
+
+            // ALL FILTER VALUES mode — render flat list of source values
+            const isAllMode = filterSelect.value === 'all';
+            if (isAllMode) {
+                sourceValuesData.filter(i => i.included).forEach(item => {
+                    const cnt = formatCount(getRandomCount(true));
+                    html += `
+                        <div class="flex items-center text-[11px] text-gray-700 space-x-2 relative pr-2">
+                            <input type="checkbox" class="preview-val-cb w-3.5 h-3.5 rounded-sm border-gray-300 flex-shrink-0">
+                            <div class="flex-1 flex justify-between items-center overflow-hidden pr-2">
+                                <span class="truncate mr-2">${item.name}</span>
+                                <span class="text-[10px] text-gray-400 font-normal flex-shrink-0">(${cnt})</span>
+                            </div>
+                        </div>`;
+                });
+                previewBox.innerHTML = html + `</div>`;
+                if (!storefrontView.classList.contains('hidden')) renderStorefront();
+                bindPreviewInteractions();
+                return;
+            }
+
+            const multipleModeAnalysis = isSingle ? null : analyzeMultipleModeSelection();
+            const displayedPreviewValues = new Set();
+
+            groups.forEach((group, gi) => {
+                const name = group.groupName || 'Group Name';
+                const groupColor = group.color || '#d1d5db';
+                const values = group.values || [];
+                
+                const groupCount = formatCount(getRandomCount(false));
+                const groupKey = `g:${gi}`;
+                
+                // Get selection info for preview
+                const selectionInfo = analyzeGroupSelection(gi);
+                const isGroupActive = selectionInfo.allSelected;
+
+                let showAsGroup = false;
+                let showAsValues = false;
+                let selectedValueNames = [];
+
+                if (isSingle) {
+                    showAsGroup = isGroupActive;
+                } else {
+                    const analysis = multipleModeAnalysis?.find(a => a.index === gi);
+                    if (analysis) {
+                        showAsGroup = analysis.displayMode === 'group' && !analysis.isIndeterminate;
+                        showAsValues = analysis.displayMode === 'values' || analysis.isIndeterminate;
+                        selectedValueNames = analysis.selectedChildren.map(sc => sc.name);
+                    }
+                }
+
+                html += `
+                    <div class="group-preview-item" data-group-index="${gi}">
+                        <div class="flex items-center text-[11px] text-gray-700 space-x-2 relative mb-1 group-preview-head ${isSwatchMode ? 'rounded-lg px-1.5 py-1 hover:bg-blue-50/70 transition-colors' : ''}">
+                `;
+
+                if (isSwatchMode) {
+                    html += `
+                        <button type="button" class="preview-group-swatch w-5 h-5 rounded-full border-2 border-white shadow ring-1 ring-gray-300 flex-shrink-0 transition-all hover:scale-110 hover:ring-blue-500 ${isGroupActive ? 'ring-4 ring-zinc-900/20 border-zinc-900 scale-110' : ''}" 
+                                style="background: ${groupColor}" title="${name}"></button>`;
+                } else {
+                    // Preview checkbox with indeterminate support
+                    if (selectionInfo.isIndeterminate) {
+                        html += `<span class="preview-group-cb w-3.5 h-3.5 rounded-sm border flex-shrink-0 bg-zinc-900 border-zinc-900 checkbox-indeterminate relative text-white"></span>`;
+                    } else if (isGroupActive) {
+                        html += `<input type="checkbox" name="preview-group" class="preview-group-cb w-3.5 h-3.5 rounded-sm border-gray-300 flex-shrink-0" checked>`;
+                    } else {
+                        html += `<input type="checkbox" name="preview-group" class="preview-group-cb w-3.5 h-3.5 rounded-sm border-gray-300 flex-shrink-0">`;
+                    }
+                }
+
+                html += `
+                            <div class="flex-1 flex justify-between items-center cursor-pointer overflow-hidden pr-2" onclick="if(!${hideChildren}){this.parentElement.nextElementSibling.classList.toggle('hidden'); this.querySelector('.chevron').classList.toggle('-rotate-90')}">
+                                <div class="flex items-center space-x-2 truncate">
+                                    <span class="font-bold truncate text-gray-900">${name}</span>
+                                </div>
+                                <div class="flex items-center space-x-1 flex-shrink-0">
+                                    <span class="text-[10px] text-gray-400 font-normal">(${groupCount})</span>
+                                    <i class="fas fa-chevron-down chevron text-[8px] text-gray-400 transition-transform ${hideChildren ? 'hidden' : ''}"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ml-5 mt-1 ${hideChildren ? 'hidden' : ''} ${isSwatchMode ? (isSwatchGrid ? 'grid grid-cols-4 gap-1.5 justify-items-start max-w-[188px]' : 'grid grid-cols-1 gap-2 max-w-[220px]') : 'space-y-1'}">
+                `;
+
+                // Render all values
+                values.forEach((v, vi) => {
+                    const valName = v.name;
+                    const valColor = v.color || '#d1d5db';
+                    const valImage = v.image || '';
+                    const valCount = formatCount(getRandomCount(true));
+                    const childKey = `c:${gi}:${vi}`;
+                    const isChildActive = storefrontState.selected.has(childKey);
+                    
+                    const isSelectedInMultiple = showAsValues && selectedValueNames.includes(valName);
+                    const shouldBeHighlighted = isSingle ? false : (isSelectedInMultiple || isChildActive);
+                    const shouldDim = isSingle || (showAsGroup && !shouldBeHighlighted);
+
+                    if (isSelectedInMultiple && !isSingle) {
+                        displayedPreviewValues.set(valName.toLowerCase(), true);
+                    }
+
+                    html += isSwatchMode ? `
+                        <div class="relative group swatch-container ${isSwatchTextRow ? 'grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-2 w-full max-w-[220px] px-2 py-1.5 hover:bg-blue-50/40 transition-all cursor-pointer rounded-md' : 'w-10 h-10 flex items-center justify-center rounded-xl border border-transparent hover:border-blue-300 hover:bg-blue-50/60 transition-all cursor-pointer'} ${shouldDim && !shouldBeHighlighted ? 'opacity-40' : ''}"
+                             data-clickable="${!isSingle}" title="${valName} (${valCount})">
+                            <div class="swatch-circle w-7 h-7 rounded-full border-2 border-white shadow ring-1 ring-gray-300 overflow-hidden transition-all ${!isSingle ? 'group-hover:scale-110 group-hover:ring-blue-500 group-hover:z-10' : ''} ${shouldBeHighlighted ? 'ring-blue-600 scale-110 ring-[3px]' : ''} ${isSwatchTextRow ? 'flex-shrink-0' : ''}" style="background:${isImageSwatchMode ? '#f3f4f6' : valColor}">
+                                ${isImageSwatchMode ? (valImage ? `<img src="${valImage}" class="w-full h-full object-cover">` : `<div class='w-full h-full bg-gray-100'></div>`) : ''}
+                            </div>
+                            ${isSwatchTextRow ? `<span class="text-[10px] font-medium text-gray-700 truncate">${valName}</span><span class="text-[9px] text-gray-400">(${valCount})</span>` : ''}
+                        </div>
+                    ` : `
+                        <div class="text-[10px] text-gray-500 flex items-center space-x-2 relative pr-10 ${shouldDim && !shouldBeHighlighted ? 'opacity-40' : ''}">
+                            ${!isSingle ? `<input type="checkbox" class="preview-val-cb w-2.5 h-2.5 rounded-sm border-gray-200 flex-shrink-0" ${shouldBeHighlighted ? 'checked' : ''}>` : 
+                              (isSingle ? `<span class="w-2.5 h-2.5 rounded-sm border border-gray-200 flex-shrink-0 inline-block opacity-30"></span>` : '')}
+                            <span class="truncate mr-2">${valName}</span>
+                            <span class="absolute right-[2px] text-[9px] text-gray-400">(${valCount})</span>
+                        </div>
+                    `;
+                });
+                html += `</div></div>`;
+            });
+
+            // Remaining values
+            if (isMerged) {
+                const assigned = getAssignedValues();
+                const remainingItems = sourceValuesData.filter(item => 
+                    !assigned.has(item.name.toLowerCase()) && item.included
+                );
+                
+                if (remainingItems.length > 0) {
+                    if (isSwatchMode) {
+                        html += `<div class="pt-4 mt-4 border-t-2 border-gray-200">
+                            <div class="${isSwatchGrid ? 'grid grid-cols-4 gap-1.5 justify-items-start' : 'space-y-2'}">`;
+                        
+                        remainingItems.forEach(item => {
+                            const remainingCount = formatCount(getRandomCount(true));
+                            const remKey = `r:${sourceValuesData.indexOf(item)}`;
+                            const isActive = storefrontState.selected.has(remKey);
+
+                            if (!isSingle && displayedPreviewValues.has(item.name.toLowerCase())) return;
+                            if (isActive) displayedPreviewValues.set(item.name.toLowerCase(), true);
+
+                            html += `
+                                <div class="relative group swatch-container remaining-swatch-item ${isSwatchTextRow ? 'grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-2 w-full min-w-[210px] px-2 py-1.5 hover:bg-blue-50/40 transition-all cursor-pointer rounded-md' : 'w-10 h-10 flex items-center justify-center rounded-xl border border-transparent hover:border-blue-300 hover:bg-blue-50/60 transition-all cursor-pointer'}" title="${item.name} (${remainingCount})">
+                                    <div class="swatch-circle w-7 h-7 rounded-full border-2 border-white shadow-sm ring-1 ring-gray-300 transition-all group-hover:scale-110 group-hover:ring-blue-500 group-hover:z-10 overflow-hidden ${isActive ? 'ring-blue-600 scale-110 ring-[3px]' : ''} ${isSwatchTextRow ? 'flex-shrink-0' : ''}" style="background:${isImageSwatchMode ? '#f3f4f6' : (item.color || '#d1d5db')}">
+                                        ${isImageSwatchMode ? ((item.image || '') ? `<img src="${item.image}" class="w-full h-full object-cover">` : `<div class='w-full h-full bg-gray-100'></div>`) : ''}
+                                    </div>
+                                    ${isSwatchTextRow ? `<span class="text-[10px] font-medium text-gray-700 truncate">${item.name}</span><span class="text-[9px] text-gray-400">(${remainingCount})</span>` : ''}
+                                </div>
+                            `;
+                        });
+                        html += `</div></div>`;
+                    } else {
+                        remainingItems.forEach(item => {
+                            const itemCount = formatCount(getRandomCount(false));
+                            const remKey = `r:${sourceValuesData.indexOf(item)}`;
+                            const isActive = storefrontState.selected.has(remKey);
+
+                            if (!isSingle && displayedPreviewValues.has(item.name.toLowerCase())) return;
+                            if (isActive) displayedPreviewValues.set(item.name.toLowerCase(), true);
+
+                            html += `
+                                <div class="flex items-center text-[11px] text-gray-700 space-x-2 relative group-preview-item remaining-item">
+                                    <input type="checkbox" name="preview-group" class="preview-group-cb w-3.5 h-3.5 rounded-sm border-gray-300 flex-shrink-0" ${isActive ? 'checked' : ''}>
+                                    <div class="flex-1 flex justify-between items-center overflow-hidden pr-2">
+                                        <span class="font-medium truncate mr-2">${item.name}</span>
+                                        <span class="text-[10px] text-gray-400 font-normal flex-shrink-0">(${itemCount})</span>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    }
+                }
+            }
+
+            previewBox.innerHTML = html + `</div>`;
+            
+            if (!storefrontView.classList.contains('hidden')) renderStorefront();
+
+            bindPreviewInteractions();
+        }
+
+        // ==================== PREVIEW INTERACTIONS ====================
+        function bindPreviewInteractions() {
+            const cfg = getStorefrontConfig();
+            const isSingle = cfg.mode === 'single';
+            const isMerged = cfg.isMerged;
+            const isSwatchMode = isVisualSwatchMode();
+            const isSwatchTextRow = isSwatchMode && !hideValueNameCheckbox.checked;
+
+            const allGroupItems = previewBox.querySelectorAll('.group-preview-item');
+
+            function deselectAll() {
+                allGroupItems.forEach(item => {
+                    const cb = item.querySelector('.preview-group-cb');
+                    if (cb) {
+                        if (cb.type === 'checkbox') cb.checked = false;
+                        else {
+                            // Remove indeterminate styling
+                            cb.className = 'preview-group-cb w-3.5 h-3.5 rounded-sm border-gray-300 flex-shrink-0';
+                        }
+                    }
+                    item.classList.remove('active-group');
+                    item.querySelector('.group-preview-head')?.classList.remove('bg-blue-50', 'ring-1', 'ring-blue-200');
+                    item.querySelector('.preview-group-swatch')?.classList.remove('ring-blue-600', 'ring-[3px]', 'scale-110');
+                    item.querySelectorAll('.preview-val-cb').forEach(c => c.checked = false);
+                    item.querySelectorAll('.swatch-circle').forEach(s => s.classList.remove('ring-blue-600', 'scale-110', 'ring-[3px]'));
+                    item.querySelectorAll('.swatch-container').forEach(s => s.classList.remove('bg-blue-50'));
+                });
+                previewBox.querySelectorAll('.remaining-swatch-item').forEach(s => {
+                    s.classList.remove('bg-blue-50');
+                    s.querySelector('.swatch-circle')?.classList.remove('ring-blue-600', 'scale-110', 'ring-[3px]');
+                });
+                previewBox.querySelectorAll('.remaining-item').forEach(item => {
+                    const cb = item.querySelector('.preview-group-cb');
+                    if (cb && cb.type === 'checkbox') cb.checked = false;
+                });
+            }
+
+            allGroupItems.forEach((item, gi) => {
+                const head = item.querySelector('.group-preview-head');
+                const cb = item.querySelector('.preview-group-cb');
+                const swatchBtn = item.querySelector('.preview-group-swatch');
+                const groupKey = `g:${gi}`;
+
+                const handleToggle = (forceState) => {
+                    const nextState = forceState !== undefined ? forceState : (isSingle ? true : !item.classList.contains('active-group'));
+                    if (isSingle && nextState) deselectAll();
+
+                    // Update checkbox/swatch visuals based on state
+                    if (cb) {
+                        if (nextState) {
+                            if (cb.type === 'checkbox') {
+                                cb.checked = true;
+                            } else {
+                                cb.className = 'preview-group-cb w-3.5 h-3.5 rounded-sm flex-shrink-0 bg-zinc-900 border-zinc-900';
+                            }
+                        } else {
+                            if (cb.type === 'checkbox') {
+                                cb.checked = false;
+                            } else {
+                                cb.className = 'preview-group-cb w-3.5 h-3.5 rounded-sm border-gray-300 flex-shrink-0';
+                            }
+                        }
+                    }
+                    
+                    item.classList.toggle('active-group', nextState);
+                    head?.classList.toggle('bg-blue-50', nextState);
+                    head?.classList.toggle('ring-1', nextState);
+                    head?.classList.toggle('ring-blue-200', nextState);
+                    swatchBtn?.classList.toggle('ring-blue-600', nextState);
+                    swatchBtn?.classList.toggle('ring-[3px]', nextState);
+                    swatchBtn?.classList.toggle('scale-110', nextState);
+
+                    if (nextState) {
+                        storefrontState.selected.add(groupKey);
+                        if (!isSingle) {
+                            const group = getGroupData()[gi];
+                            if (group) {
+                                group.values.forEach((_, vi) => {
+                                    storefrontState.selected.add(`c:${gi}:${vi}`);
+                                });
+                            }
+                        }
+                    } else {
+                        storefrontState.selected.delete(groupKey);
+                        if (!isSingle) {
+                            const group = getGroupData()[gi];
+                            if (group) {
+                                group.values.forEach((_, vi) => {
+                                    storefrontState.selected.delete(`c:${gi}:${vi}`);
+                                });
+                            }
+                        }
+                    }
+
+                    item.querySelectorAll('.swatch-circle').forEach(s => {
+                        if (nextState) s.classList.add('ring-blue-600', 'scale-110', 'ring-[3px]');
+                        else s.classList.remove('ring-blue-600', 'scale-110', 'ring-[3px]');
+                    });
+                    item.querySelectorAll('.swatch-container').forEach(s => {
+                        if (nextState) s.classList.add('bg-blue-50');
+                        else s.classList.remove('bg-blue-50');
+                    });
+                    item.querySelectorAll('.preview-val-cb').forEach(c => {
+                        c.checked = nextState;
+                    });
+
+                    updatePreview();
+                };
+
+                if (cb && cb.type === 'checkbox') {
+                    cb.addEventListener('change', () => handleToggle(cb.checked));
+                } else if (cb) {
+                    // Indeterminate span - make clickable
+                    cb.parentElement?.addEventListener('click', (e) => {
+                        if (e.target === cb || cb.contains(e.target)) {
+                            handleToggle(!item.classList.contains('active-group'));
+                        }
+                    });
+                    cb.style.cursor = 'pointer';
+                }
+                
+                swatchBtn?.addEventListener('click', (e) => { e.stopPropagation(); handleToggle(); });
+
+                if (isSwatchTextRow) {
+                    head?.addEventListener('click', (e) => { 
+                        if (!e.target.closest('input') && !e.target.closest('.preview-group-cb')) handleToggle(); 
+                    });
+                }
+
+                // Child interactions for multiple mode
+                if (!isSingle) {
+                    const group = getGroupData()[gi];
+                    if (!group) return;
+
+                    item.querySelectorAll('.preview-val-cb').forEach((vCb, vi) => {
+                        vCb.addEventListener('change', () => {
+                            const childKey = `c:${gi}:${vi}`;
+                            if (vCb.checked) {
+                                storefrontState.selected.add(childKey);
+                            } else {
+                                storefrontState.selected.delete(childKey);
+                            }
+                            // Re-render to update parent indeterminate state
+                            updatePreview();
+                        });
+                    });
+
+                    item.querySelectorAll('.swatch-container:not(.remaining-swatch-item)').forEach((container, ci) => {
+                        container.addEventListener('click', () => {
+                            const circle = container.querySelector('.swatch-circle');
+                            const childKey = `c:${gi}:${ci}`;
+                            const isActive = storefrontState.selected.has(childKey);
+
+                            if (isActive) {
+                                storefrontState.selected.delete(childKey);
+                                container.classList.remove('bg-blue-50');
+                                circle?.classList.remove('ring-blue-600', 'scale-110', 'ring-[3px]');
+                            } else {
+                                storefrontState.selected.add(childKey);
+                                container.classList.add('bg-blue-50');
+                                circle?.classList.add('ring-blue-600', 'scale-110', 'ring-[3px]');
+                            }
+                            // Re-render to update parent state
+                            updatePreview();
+                        });
+                    });
+                }
+            });
+
+            // Remaining items interactions
+            previewBox.querySelectorAll('.remaining-swatch-item').forEach(container => {
+                container.addEventListener('click', () => {
+                    const circle = container.querySelector('.swatch-circle');
+                    const isActive = container.classList.contains('bg-blue-50');
+                    const itemName = container.getAttribute('title')?.split(' ')[0] || '';
+                    const itemIndex = sourceValuesData.findIndex(v => v.name === itemName);
+                    const remKey = `r:${itemIndex}`;
+
+                    if (isSingle) {
+                        if (!isActive) {
+                            deselectAll();
+                            container.classList.add('bg-blue-50');
+                            circle?.classList.add('ring-blue-600', 'scale-110', 'ring-[3px]');
+                            storefrontState.selected.add(remKey);
+                        }
+                    } else {
+                        const next = !isActive;
+                        container.classList.toggle('bg-blue-50', next);
+                        circle?.classList.toggle('ring-blue-600', next);
+                        circle?.classList.toggle('scale-110', next);
+                        circle?.classList.toggle('ring-[3px]', next);
+                        if (next) {
+                            storefrontState.selected.add(remKey);
+                        } else {
+                            storefrontState.selected.delete(remKey);
+                        }
+                    }
+                    updatePreview();
+                });
+            });
+
+            previewBox.querySelectorAll('.remaining-item').forEach((item, ri) => {
+                const cb = item.querySelector('.preview-group-cb');
+                const assigned = getAssignedValues();
+                const remaining = sourceValuesData.filter(v => !assigned.has(v.name.toLowerCase()) && v.included);
+                const actualItem = remaining[ri];
+                if (!actualItem) return;
+                const fullIndex = sourceValuesData.findIndex(v => v.name === actualItem.name);
+                const remKey = `r:${fullIndex}`;
+
+                if (cb && cb.type === 'checkbox') {
+                    cb.addEventListener('change', () => {
+                        if (cb.checked) {
+                            if (isSingle) deselectAll();
+                            storefrontState.selected.add(remKey);
+                        } else {
+                            storefrontState.selected.delete(remKey);
+                        }
+                        updatePreview();
+                    });
+                }
+            });
+        }
+
+        // ==================== ADD VALUE FUNCTION ====================
+        function addValue(btn) {
+            const list = btn.closest('.group-row').querySelector('.value-list-container');
+            if (!list) return;
+            
+            const row = document.createElement('div');
+            row.className = 'value-row flex items-center space-x-2 mt-2 ml-10';
+            row.draggable = true;
+            row.dataset.color = '#d1d5db';
+            row.dataset.image = '';
+            
+            row.innerHTML = `
+                <i class="fas fa-ellipsis-v text-gray-300 text-[10px] cursor-grab active:cursor-grabbing"></i>
+                <div class="flex-1 bg-white border border-gray-200 rounded px-2 py-1 flex items-center shadow-sm relative gap-2">
+                    <div class="value-color-wrap hidden items-center border border-gray-300 rounded-md bg-white h-7 overflow-hidden flex-shrink-0">
+                        <button type="button" class="value-color-trigger w-7 h-7 flex items-center justify-center border-r border-gray-200 bg-gray-50">
+                            <span class="value-color-dot w-4 h-4 rounded-full border border-gray-300 block bg-[#d1d5db]"></span>
+                        </button>
+                        <input type="text" value="#d1d5db" class="value-color-text w-20 px-2 text-[10px] text-gray-700 outline-none" />
+                        <input type="color" value="#d1d5db" class="value-color-input absolute opacity-0 pointer-events-none w-0 h-0">
+                    </div>
+                    <div class="value-image-wrap hidden items-center border border-gray-300 rounded-md bg-white h-7 overflow-hidden flex-shrink-0">
+                        <label class="value-image-trigger w-7 h-7 flex items-center justify-center border-r border-gray-200 bg-gray-50 cursor-pointer overflow-hidden">
+                            <span class="value-image-preview w-4 h-4 rounded-full border border-gray-300 block bg-gray-100"></span>
+                            <input type="file" accept="image/*" class="value-image-file hidden">
+                        </label>
+                        <input type="text" value="" placeholder="Image URL" class="value-image-text w-24 px-2 text-[10px] text-gray-700 outline-none" />
+                    </div>
+                    <input type="text" placeholder="Search or type..." class="value-input flex-1 text-xs border-none focus:ring-0 p-0 outline-none" />
+                    <div class="val-dropdown hidden absolute top-full left-0 w-full bg-white border border-gray-200 rounded-b shadow-lg z-20 max-h-40 overflow-y-auto">
+                        <div class="dropdown-list"></div>
+                    </div>
+                    <button class="rm-v text-gray-300 hover:text-red-500 ml-1"><i class="fas fa-times text-[10px]"></i></button>
+                </div>
+            `;
+            list.appendChild(row);
+
+            const input = row.querySelector('.value-input');
+            const dropdown = row.querySelector('.val-dropdown');
+            const dList = row.querySelector('.dropdown-list');
+            const colorWrap = row.querySelector('.value-color-wrap');
+            const colorInput = row.querySelector('.value-color-input');
+            const colorText = row.querySelector('.value-color-text');
+            const colorDot = row.querySelector('.value-color-dot');
+            const colorTrigger = row.querySelector('.value-color-trigger');
+            const imageWrap = row.querySelector('.value-image-wrap');
+            const imageFile = row.querySelector('.value-image-file');
+            const imageText = row.querySelector('.value-image-text');
+            const imagePreview = row.querySelector('.value-image-preview');
+
+            const populate = (term) => {
+                const alreadySelectedInThisGroup = new Set([...btn.closest('.group-row').querySelectorAll('.value-input')].map(i => i.value.trim().toLowerCase()));
+                const filtered = sourceValuesData.map(s => s.name).filter(v => {
+                    const matchesSearch = v.toLowerCase().includes(term.toLowerCase());
+                    const isNotSelectedInThisGroup = !alreadySelectedInThisGroup.has(v.toLowerCase());
+                    return matchesSearch && isNotSelectedInThisGroup;
+                });
+                dList.innerHTML = filtered.length > 0 
+                    ? filtered.map(v => `<div class="p-2 hover:bg-gray-100 text-[10px] cursor-pointer border-b border-gray-50 last:border-0">${v}</div>`).join('')
+                    : '<div class="p-2 text-[10px] text-gray-400">No values found</div>';
+            };
+
+            function syncValueAsset() {
+                const match = sourceValuesData.find(v => v.name.toLowerCase() === input.value.trim().toLowerCase());
+                const defaultColor = match?.color || row.dataset.color || '#d1d5db';
+                const defaultImage = match?.image || row.dataset.image || '';
+                
+                row.dataset.color = defaultColor;
+                row.dataset.image = defaultImage;
+                
+                if (colorInput) colorInput.value = defaultColor;
+                if (colorText) colorText.value = defaultColor;
+                if (colorDot) colorDot.style.background = defaultColor;
+                if (imageText) imageText.value = defaultImage;
+                if (imagePreview) {
+                    imagePreview.innerHTML = defaultImage 
+                        ? `<img src="${defaultImage}" class="w-full h-full object-cover">` 
+                        : `<span class="w-4 h-4 rounded-full border border-gray-300 block bg-gray-100"></span>`;
+                }
+                
+                colorWrap?.classList.toggle('hidden', !isColorMode());
+                colorWrap?.classList.toggle('flex', isColorMode());
+                imageWrap?.classList.toggle('hidden', !isImageMode());
+                imageWrap?.classList.toggle('flex', isImageMode());
+            }
+
+            input.addEventListener('focus', () => { 
+                dropdown.classList.remove('hidden'); 
+                populate(input.value); 
+            });
+            
+            input.addEventListener('input', () => { 
+                populate(input.value);
+                syncValueAsset();
+                updatePreview();
+                renderRemainingBox();
+            });
+            
+            dList.addEventListener('click', (e) => {
+                const item = e.target.closest('.cursor-pointer');
+                if (item && !item.classList.contains('text-gray-400')) {
+                    input.value = item.textContent;
+                    syncValueAsset();
+                    dropdown.classList.add('hidden');
+                    updatePreview();
+                    renderRemainingBox();
+                }
+            });
+            
+            colorTrigger?.addEventListener('click', () => colorInput?.click());
+            
+            colorInput?.addEventListener('input', () => {
+                const normalized = normalizeColor(colorInput.value) || '#d1d5db';
+                row.dataset.color = normalized;
+                if (colorText) colorText.value = normalized;
+                if (colorDot) colorDot.style.background = normalized;
+                const match = sourceValuesData.find(v => v.name.toLowerCase() === input.value.trim().toLowerCase());
+                if (match) match.color = normalized;
+                renderRemainingBox();
+                updatePreview();
+            });
+            
+            colorText?.addEventListener('change', () => {
+                const normalized = normalizeColor(colorText.value);
+                if (!normalized) {
+                    colorText.value = row.dataset.color || '#d1d5db';
+                    return;
+                }
+                row.dataset.color = normalized;
+                if (colorInput) colorInput.value = normalized;
+                if (colorDot) colorDot.style.background = normalized;
+                const match = sourceValuesData.find(v => v.name.toLowerCase() === input.value.trim().toLowerCase());
+                if (match) match.color = normalized;
+                renderRemainingBox();
+                updatePreview();
+            });
+            
+            imageFile?.addEventListener('change', () => {
+                if (!imageFile.files[0]) return;
+                const reader = new FileReader();
+                reader.onload = () => {
+                    row.dataset.image = reader.result;
+                    if (imageText) imageText.value = reader.result;
+                    if (imagePreview) imagePreview.innerHTML = `<img src="${reader.result}" class="w-full h-full object-cover">`;
+                    const match = sourceValuesData.find(v => v.name.toLowerCase() === input.value.trim().toLowerCase());
+                    if (match) match.image = reader.result;
+                    renderRemainingBox();
+                    updatePreview();
+                };
+                reader.readAsDataURL(imageFile.files[0]);
+            });
+            
+            imageText?.addEventListener('change', () => {
+                row.dataset.image = imageText.value.trim();
+                if (imagePreview) {
+                    imagePreview.innerHTML = row.dataset.image 
+                        ? `<img src="${row.dataset.image}" class="w-full h-full object-cover">` 
+                        : `<span class="w-4 h-4 rounded-full border border-gray-300 block bg-gray-100"></span>`;
+                }
+                const match = sourceValuesData.find(v => v.name.toLowerCase() === input.value.trim().toLowerCase());
+                if (match) match.image = row.dataset.image;
+                renderRemainingBox();
+                updatePreview();
+            });
+            
+            document.addEventListener('click', (e) => { 
+                if (!row.contains(e.target)) dropdown.classList.add('hidden'); 
+            });
+            
+            row.querySelector('.rm-v').addEventListener('click', () => { 
+                row.remove();
+                renderRemainingBox();
+                updatePreview(); 
+            });
+
+            row.addEventListener('dragstart', () => row.classList.add('dragging'));
+            row.addEventListener('dragend', () => { 
+                row.classList.remove('dragging');
+                updatePreview(); 
+            });
+            
+            list.addEventListener('dragover', (e) => { 
+                e.preventDefault(); 
+                const dragging = document.querySelector('.dragging');
+                if (!dragging || !list.contains(dragging)) return;
+                const after = [...list.querySelectorAll('.value-row:not(.dragging)')]
+                    .find(c => e.clientY < c.getBoundingClientRect().top + c.offsetHeight / 2);
+                list.insertBefore(dragging, after);
+            });
+
+            syncValueAsset();
+            input.focus();
+            updatePreview();
+        }
+
+        // ==================== ADD GROUP FUNCTION ====================
+        function addGroup() {
+            let list = document.getElementById('group-list-container');
+            let addC = document.getElementById('add-group-btn-container');
+            
+            if (!list) {
+                list = document.createElement('div');
+                list.id = 'group-list-container';
+                list.className = 'space-y-4';
+                dynamicConfigArea.appendChild(list);
+                
+                list.addEventListener('dragover', (e) => { 
+                    e.preventDefault(); 
+                    const dragging = document.querySelector('.dragging-g');
+                    if (!dragging) return;
+                    const after = [...list.querySelectorAll('.group-row:not(.dragging-g)')]
+                        .find(c => e.clientY < c.getBoundingClientRect().top + c.offsetHeight / 2);
+                    list.insertBefore(dragging, after);
+                });
+            }
+            
+            if (!addC) {
+                addC = document.createElement('div');
+                addC.id = 'add-group-btn-container';
+                addC.className = 'pt-1 flex justify-start';
+                addC.innerHTML = `<button class="px-3 py-1.5 bg-white border border-gray-300 rounded text-[11px] font-bold text-gray-900 shadow-sm hover:bg-gray-50 flex items-center space-x-2 transition-colors">
+                    <i class="fas fa-plus text-[10px]"></i><span>Add Group</span>
+                </button>`;
+                addC.querySelector('button').onclick = addGroup;
+                dynamicConfigArea.appendChild(addC);
+            }
+
+            const gRow = document.createElement('div');
+            gRow.className = 'group-row space-y-2';
+            gRow.draggable = true;
+            
+            const swatchMode = isVisualSwatchMode();
+            const groupColor = '#d1d5db';
+            gRow.dataset.color = groupColor;
+
+            gRow.innerHTML = `
+                <div class="flex flex-col bg-white border border-gray-200 rounded p-2 shadow-sm transition-all duration-200 group-shell">
+                    <div class="flex items-center space-x-2">
+                        <i class="fas fa-chevron-down text-[10px] text-gray-400 cursor-pointer transition-transform" onclick="this.closest('.group-row').querySelector('.value-list-container').classList.toggle('hidden'); this.closest('.group-row').querySelector('.add-v-btn').parentElement.classList.toggle('hidden'); this.classList.toggle('-rotate-90')"></i>
+                        <i class="fas fa-ellipsis-v text-gray-300 cursor-move text-xs"></i>
+
+                        <div class="group-color-swatch-wrap ${swatchMode ? 'flex' : 'hidden'} items-center mr-1">
+                            <button type="button" class="w-6 h-6 rounded-full border border-gray-300 shadow-sm relative overflow-hidden" style="background: ${groupColor}" onclick="this.nextElementSibling.click()">
+                            </button>
+                            <input type="color" class="absolute opacity-0 w-0 h-0 group-color-picker" value="${groupColor}" oninput="this.previousElementSibling.style.background = this.value; this.closest('.group-row').dataset.color = this.value; updatePreview();">
+                        </div>
+
+                        <input type="text" placeholder="Group Name" class="group-name-input flex-1 text-sm border-none focus:ring-0 p-0 outline-none font-semibold" />
+                        <button class="rm-g text-gray-400 hover:text-red-500 transition-colors"><i class="far fa-trash-alt text-xs"></i></button>
+                    </div>
+                </div>
+                <div class="value-list-container"></div>
+                <div class="flex justify-start ml-10">
+                    <button class="add-v-btn flex items-center space-x-1 px-2 py-1 bg-white border border-gray-200 rounded text-[9px] font-bold text-gray-900 shadow-sm hover:bg-gray-50 transition-colors">
+                        <i class="fas fa-plus scale-75"></i><span class="bt">Add Values to Group Name</span>
+                    </button>
+                </div>
+            `;
+            
+            list.appendChild(gRow);
+            dynamicConfigArea.appendChild(addC);
+
+            const gInp = gRow.querySelector('.group-name-input');
+            
+            gRow.addEventListener('dragstart', () => gRow.classList.add('dragging-g'));
+            gRow.addEventListener('dragend', () => { 
+                gRow.classList.remove('dragging-g');
+                updatePreview(); 
+            });
+
+            gInp.addEventListener('input', () => {
+                gRow.querySelector('.bt').textContent = `Add Values to ${gInp.value || 'Group Name'}`;
+                validateGroupNames();
+                updatePreview();
+            });
+            
+            gRow.querySelector('.add-v-btn').addEventListener('click', () => addValue(gRow.querySelector('.add-v-btn')));
+            
+            gRow.querySelector('.rm-g').addEventListener('click', () => {
+                gRow.remove();
+                if (list && !list.children.length) {
+                    list.remove();
+                }
+                validateGroupNames();
+                renderRemainingBox();
+                updatePreview();
+            });
+
+            gInp.focus();
+            updatePreview();
+        }
+
+        // ==================== ENSURE MERGED AREA ====================
+        function ensureMergedArea() {
+            let addC = document.getElementById('add-group-btn-container');
+            if (!addC) {
+                addC = document.createElement('div');
+                addC.id = 'add-group-btn-container';
+                addC.className = 'pt-1 flex justify-start';
+                addC.innerHTML = `<button class="px-3 py-1.5 bg-white border border-gray-300 rounded text-[11px] font-bold text-gray-900 shadow-sm hover:bg-gray-50 flex items-center space-x-2 transition-colors">
+                    <i class="fas fa-plus text-[10px]"></i><span>Add Group</span>
+                </button>`;
+                addC.querySelector('button').onclick = addGroup;
+                dynamicConfigArea.appendChild(addC);
+            }
+        }
+
+        // ==================== SYNC DISPLAY TYPE OPTIONS ====================
+        function syncDisplayTypeOptions() {
+            const source = sourceSelectEl.value;
+            const isMerged = isMergedMode();
+            let allowed = ['Box', 'Check List', 'Color Swatch', 'Image Swatch'];
+            
+            if (source === 'Price') allowed = ['Slider', 'Check List'];
+            else if (source === 'Availability') allowed = ['Box', 'Check List'];
+            if (isMerged) allowed = ['Check List', 'Color Swatch', 'Image Swatch'];
+            
+            [...displayTypeSelect.options].forEach(option => {
+                const ok = allowed.includes(option.value);
+                option.disabled = !ok;
+                option.hidden = !ok;
+            });
+            
+            if (!allowed.includes(displayTypeSelect.value)) displayTypeSelect.value = allowed[0];
+        }
+
+        // ==================== VALIDATE GROUP NAMES ====================
+        function validateGroupNames() {
+            const groups = [...document.querySelectorAll('.group-row')];
+            const groupedByName = new Map();
+
+            groups.forEach(group => {
+                const shell = group.querySelector('.group-shell');
+                const input = group.querySelector('.group-name-input');
+                const name = (input?.value || '').trim().toLowerCase();
+                
+                shell?.classList.remove('border-red-300', 'bg-red-50/40');
+                input?.classList.remove('text-red-600', 'placeholder-red-300');
+                if (input) input.style.boxShadow = '';
+                if (!name) return;
+                
+                if (!groupedByName.has(name)) groupedByName.set(name, []);
+                groupedByName.get(name).push(group);
+            });
+
+            const duplicateNames = [...groupedByName.entries()].filter(([, items]) => items.length > 1);
+            
+            if (!duplicateNames.length) {
+                groupNameWarning.classList.add('hidden');
+                groupNameWarning.textContent = '';
+                return true;
+            }
+
+            const labels = [];
+            duplicateNames.forEach(([name, items]) => {
+                labels.push(name);
+                items.forEach(group => {
+                    const shell = group.querySelector('.group-shell');
+                    const input = group.querySelector('.group-name-input');
+                    shell?.classList.add('border-red-300', 'bg-red-50/40');
+                    input?.classList.add('text-red-600', 'placeholder-red-300');
+                    if (input) input.style.boxShadow = 'inset 0 -1px 0 rgba(220,38,38,0.18)';
+                });
+            });
+
+            const prettyNames = labels.map(n => `"${n}"`).join(', ');
+            groupNameWarning.textContent = `Group name must be unique. Please rename duplicate group ${labels.length > 1 ? 'names' : 'name'}: ${prettyNames}.`;
+            groupNameWarning.classList.remove('hidden');
+            return false;
+        }
+
+        // ==================== RENDER REMAINING BOX ====================
+        function renderRemainingBox() {
+            if (!isMergedMode()) return;
+            
+            const assigned = getAssignedValues();
+            const filtered = sourceValuesData.filter(v => !assigned.has(v.name.toLowerCase()));
+            const swatchMode = isVisualSwatchMode();
+
+            document.getElementById('remaining-count').textContent = `${filtered.length} values`;
+            remainingList.className = swatchMode 
+                ? 'border border-gray-200 rounded-xl bg-gray-50 p-3 max-h-64 overflow-y-auto shadow-inner'
+                : 'border border-gray-200 rounded-md bg-white max-h-64 overflow-y-auto divide-y divide-gray-100 shadow-inner';
+            remainingList.innerHTML = '';
+
+            filtered.forEach((item) => {
+                const row = document.createElement('div');
+                row.draggable = true;
+                row.dataset.name = item.name;
+                row.className = swatchMode 
+                    ? 'flex items-center justify-between gap-3 p-3 rounded-xl border border-gray-200 bg-white hover:border-blue-300 hover:shadow-sm transition-all duration-150 mb-2 last:mb-0'
+                    : 'flex items-center justify-between p-2 hover:bg-gray-50 group transition-colors duration-150';
+
+                row.innerHTML = `
+                    <div class="flex items-center space-x-3 overflow-hidden mr-4">
+                        <i class="fas fa-ellipsis-v text-gray-300 text-[10px] cursor-grab active:cursor-grabbing"></i>
+                        <div class="${swatchMode ? 'w-9 h-9 rounded-full border-2 border-white shadow ring-1 ring-gray-300 overflow-hidden flex-shrink-0' : 'hidden'}" style="background:${isImageMode() ? '#f3f4f6' : (item.color || '#cccccc')}">
+                            ${isImageMode() ? (item.image ? `<img src="${item.image}" class="w-full h-full object-cover">` : `<div class='w-full h-full bg-gray-100'></div>`) : ''}
+                        </div>
+                        <span class="text-[11px] font-medium text-gray-700 truncate ${!item.included ? 'opacity-40 line-through' : ''}">${item.name}</span>
+                    </div>
+                    <div class="flex items-center flex-shrink-0 space-x-2">
+                        <div class="${isColorMode() ? '' : 'hidden'} remaining-swatch-wrap flex items-center border border-gray-300 rounded-md bg-white h-7 overflow-hidden relative">
+                            <button type="button" onclick="this.parentElement.querySelector('input[type=color]').click()" class="w-7 h-7 flex items-center justify-center border-r border-gray-200 bg-gray-50">
+                                <span class="w-4 h-4 rounded-full border border-gray-300 block" style="background:${item.color || '#cccccc'}"></span>
+                            </button>
+                            <input type="text" value="${item.color || '#cccccc'}" onchange="updateSourceColor('${item.name}', this.value)" class="w-20 px-2 text-[10px] text-gray-700 outline-none">
+                            <input type="color" value="${item.color || '#cccccc'}" onchange="updateSourceColor('${item.name}', this.value)" class="absolute opacity-0 pointer-events-none w-0 h-0">
+                        </div>
+                        <div class="${isImageMode() ? '' : 'hidden'} remaining-image-wrap flex items-center border border-gray-300 rounded-md bg-white h-7 overflow-hidden relative">
+                            <label class="w-7 h-7 flex items-center justify-center border-r border-gray-200 bg-gray-50 cursor-pointer overflow-hidden">
+                                ${item.image ? `<img src="${item.image}" class="w-full h-full object-cover">` : `<span class="w-4 h-4 rounded-full border border-gray-300 block bg-gray-100"></span>`}
+                                <input type="file" accept="image/*" onchange="updateSourceImage('${item.name}', this.files[0])" class="hidden">
+                            </label>
+                            <input type="text" value="${item.image || ''}" placeholder="Image URL" onchange="updateSourceImageUrl('${item.name}', this.value)" class="w-24 px-2 text-[10px] text-gray-700 outline-none">
+                        </div>
+                        <button onclick="toggleInclude('${item.name}')" class="flex items-center space-x-1 focus:outline-none">
+                            <span class="text-[9px] uppercase font-bold ${item.included ? 'text-green-600' : 'text-gray-400'}">${item.included ? 'Include' : 'Exclude'}</span>
+                            <div class="w-6 h-3 bg-gray-200 rounded-full relative transition-colors duration-200 ${item.included ? 'bg-green-100' : ''}">
+                                <div class="absolute top-0.5 left-0.5 w-2 h-2 rounded-full bg-white shadow-sm transform transition-transform duration-200 ${item.included ? 'translate-x-3' : ''}"></div>
+                            </div>
+                        </button>
+                    </div>
+                `;
+
+                row.addEventListener('dragstart', () => { 
+                    row.classList.add('dragging-rem');
+                    row.classList.add('bg-blue-50'); 
+                });
+                row.addEventListener('dragend', () => { 
+                    row.classList.remove('dragging-rem');
+                    row.classList.remove('bg-blue-50');
+                    updatePreview(); 
+                });
+
+                remainingList.appendChild(row);
+            });
+
+            remainingList.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const dragging = document.querySelector('.dragging-rem');
+                if (!dragging) return;
+                const after = [...remainingList.querySelectorAll('div[draggable="true"]:not(.dragging-rem)')]
+                    .find(c => e.clientY < c.getBoundingClientRect().top + c.offsetHeight / 2);
+                if (after) {
+                    remainingList.insertBefore(dragging, after);
+                } else {
+                    remainingList.appendChild(dragging);
+                }
+
+                const newOrderNames = [...remainingList.querySelectorAll('div[draggable="true"]')].map(el => el.dataset.name);
+                const reorderedData = [];
+                newOrderNames.forEach(name => {
+                    const found = sourceValuesData.find(v => v.name === name);
+                    if (found) reorderedData.push(found);
+                });
+                const currentAssigned = getAssignedValues();
+                sourceValuesData.forEach(v => {
+                    if (currentAssigned.has(v.name.toLowerCase())) reorderedData.push(v);
+                });
+                sourceValuesData = reorderedData;
+            });
+        }
+
+        // ==================== TOGGLE INCLUDE ====================
+        function toggleInclude(name) {
+            const item = sourceValuesData.find(v => v.name === name);
+            if (item) {
+                item.included = !item.included;
+                renderRemainingBox();
+                updatePreview();
+            }
+        }
+
+        // ==================== UPDATE SOURCE COLOR ====================
+        function updateSourceColor(name, color) {
+            const normalized = normalizeColor(color) || '#cccccc';
+            const item = sourceValuesData.find(v => v.name === name);
+            if (item) item.color = normalized;
+            
+            document.querySelectorAll('.value-row').forEach(row => {
+                const input = row.querySelector('.value-input');
+                if (input && input.value.trim().toLowerCase() === name.toLowerCase()) {
+                    row.dataset.color = normalized;
+                    const picker = row.querySelector('.value-color-input');
+                    const text = row.querySelector('.value-color-text');
+                    const dot = row.querySelector('.value-color-dot');
+                    if (picker) picker.value = normalized;
+                    if (text) text.value = normalized;
+                    if (dot) dot.style.background = normalized;
+                }
+            });
+            renderRemainingBox();
+            updatePreview();
+        }
+
+        // ==================== UPDATE SOURCE IMAGE URL ====================
+        function updateSourceImageUrl(name, url) {
+            const item = sourceValuesData.find(v => v.name === name);
+            if (item) item.image = (url || '').trim();
+            
+            document.querySelectorAll('.value-row').forEach(row => {
+                const input = row.querySelector('.value-input');
+                if (input && input.value.trim().toLowerCase() === name.toLowerCase()) {
+                    row.dataset.image = (url || '').trim();
+                    const text = row.querySelector('.value-image-text');
+                    const preview = row.querySelector('.value-image-preview');
+                    if (text) text.value = (url || '').trim();
+                    if (preview) {
+                        preview.innerHTML = item && item.image 
+                            ? `<img src="${item.image}" class="w-full h-full object-cover">` 
+                            : `<span class="w-4 h-4 rounded-full border border-gray-300 block bg-gray-100"></span>`;
+                    }
+                }
+            });
+            renderRemainingBox();
+            updatePreview();
+        }
+
+        // ==================== UPDATE SOURCE IMAGE (FILE) ====================
+        function updateSourceImage(name, file) {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => updateSourceImageUrl(name, reader.result);
+            reader.readAsDataURL(file);
+        }
+
+        // ==================== UPDATE VISIBILITY ====================
+        let filterValueChangedOnce = false;
+        let sourceChosenOnce = false;
+
+        function updateVisibility() {
+            const source = sourceSelectEl.value;
+            const isManually = filterSelect.value === 'manually';
+            const isMerged = isMergedMode();
+            const hideMergedSource = mergedDisabledSources.has(source);
+            const showAdvanced = sourceChosenOnce;
+
+            mergedTypeContainer.classList.toggle('hidden', !isManually);
+            syncDisplayTypeOptions();
+
+            if (isMerged) {
+                description.innerHTML = `Grouping Filter Value underlying a created Group (For example "Blue" include Navy, Teal, "Red" include Red Wine, Red Pink, etc..). <a href="#" class="text-blue-600 underline hover:text-blue-700">Learn more</a>`;
+                description.classList.remove('hidden');
+            } else {
+                description.classList.add('hidden');
+            }
+
+            matchOptions.classList.toggle('hidden', isMerged);
+            advancedOptions.classList.toggle('hidden', !showAdvanced);
+            filterValuesSection.classList.toggle('hidden', !showAdvanced);
+
+            if (isMerged && ['Color Swatch', 'Image Swatch'].includes(displayTypeSelect.value)) {
+                if (hideValueNameContainer.classList.contains('hidden')) {
+                    hideValueNameCheckbox.checked = true;
+                    hideNameToggle.classList.add('bg-blue-600');
+                    hideNameToggle.classList.remove('bg-gray-200');
+                    hideNameKnob.classList.add('translate-x-4');
+                    hideNameKnob.classList.remove('translate-x-0');
+                }
+                hideValueNameContainer.classList.remove('hidden');
+            } else {
+                hideValueNameContainer.classList.add('hidden');
+            }
+
+            if (!showAdvanced) {
+                dynamicConfigArea.innerHTML = '';
+                remainingContainer.classList.add('hidden');
+            }
+
+            if (sourceChosenOnce) {
+                const mergedRadio = document.querySelector('input[name="filter-mode"][value="merged"]');
+                const mergedLabel = document.getElementById('merged-radio-label');
+                if (mergedRadio) {
+                    mergedRadio.disabled = hideMergedSource;
+                    if (mergedLabel) {
+                        mergedLabel.classList.toggle('opacity-50', hideMergedSource);
+                        mergedLabel.classList.toggle('cursor-not-allowed', hideMergedSource);
+                        mergedLabel.classList.toggle('cursor-pointer', !hideMergedSource);
+                    }
+                    if (hideMergedSource && getFilterModeValue() === 'merged') {
+                        document.querySelector('input[name="filter-mode"][value="default"]').checked = true;
+                    }
+                }
+            }
+
+            if (isMerged) {
+                ensureMergedArea();
+                remainingContainer.classList.remove('hidden');
+                document.querySelectorAll('.group-row').forEach(grow => {
+                    const wrap = grow.querySelector('.group-color-swatch-wrap');
+                    if (wrap) {
+                        wrap.classList.toggle('hidden', !isVisualSwatchMode());
+                        wrap.classList.toggle('flex', isVisualSwatchMode());
+                    }
+                });
+            } else {
+                dynamicConfigArea.innerHTML = '';
+                remainingContainer.classList.add('hidden');
+                hideMergedCheckbox.checked = false;
+            }
+
+            hideMergedContainer.classList.toggle('hidden', !isMerged);
+
+            document.querySelectorAll('.value-row').forEach(row => {
+                const colorWrap = row.querySelector('.value-color-wrap');
+                const imageWrap = row.querySelector('.value-image-wrap');
+                if (colorWrap) {
+                    colorWrap.classList.toggle('hidden', !(isMerged && displayTypeSelect.value === 'Color Swatch'));
+                    colorWrap.classList.toggle('flex', isMerged && displayTypeSelect.value === 'Color Swatch');
+                }
+                if (imageWrap) {
+                    imageWrap.classList.toggle('hidden', !(isMerged && displayTypeSelect.value === 'Image Swatch'));
+                    imageWrap.classList.toggle('flex', isMerged && displayTypeSelect.value === 'Image Swatch');
+                }
+            });
+
+            if (isMerged) renderRemainingBox();
+            updatePreview();
+        }
+
+        // ==================== SET SOURCE ====================
+        function setSource(value) {
+            sourceSelectEl.value = value;
+            sourceDropdownLabel.textContent = value;
+            sourceDropdownLabel.classList.remove('text-gray-400');
+            labelInput.value = value;
+            labelContainer.classList.remove('hidden');
+            labelTooltipContainer.classList.remove('hidden');
+            sourceChosenOnce = true;
+            sourceDropdownMenu.classList.add('hidden');
+            updateLabelCounter();
+            updateTooltipCounter();
+            updateVisibility();
+        }
+
+        // ==================== EVENT LISTENERS ====================
+        sourceDropdownBtn.addEventListener('click', () => sourceDropdownMenu.classList.toggle('hidden'));
+        
+        document.querySelectorAll('.source-option').forEach(btn => {
+            btn.addEventListener('click', () => setSource(btn.dataset.value));
+        });
+        
+        document.addEventListener('click', e => { 
+            if (!sourceDropdownBtn.contains(e.target) && !sourceDropdownMenu.contains(e.target)) {
+                sourceDropdownMenu.classList.add('hidden');
+            }
+        });
+
+        filterSelect.addEventListener('change', () => { 
+            filterValueChangedOnce = true;
+            updateVisibility(); 
+        });
+        
+        optionSelect.addEventListener('change', updateVisibility);
+        displayTypeSelect.addEventListener('change', updateVisibility);
+        labelInput.addEventListener('input', () => { updateLabelCounter(); updatePreview(); });
+        hideMergedCheckbox.addEventListener('change', updatePreview);
+        labelTooltipField.addEventListener('input', () => { updateTooltipCounter(); updatePreview(); });
+        hideValueNameCheckbox.addEventListener('change', updatePreview);
+
+        document.querySelectorAll('input[name="filter-mode"]').forEach(radio => {
+            radio.addEventListener('change', () => { updateVisibility(); });
+        });
+
+        // ==================== INITIAL STATE ====================
+        advancedOptions.classList.add('hidden');
+        filterValuesSection.classList.add('hidden');
+        dynamicConfigArea.innerHTML = '';
+        remainingContainer.classList.add('hidden');
+        // sourceDropdownLabel already shows placeholder; keep hidden input empty until user picks
+        updateVisibility();
+
+        // ==================== GLOBAL TOOLTIP (overlay, not clipped) ====================
+        (function setupGlobalTooltip() {
+            const tip = document.getElementById('global-tooltip');
+            if (!tip) return;
+            function position(target) {
+                const r = target.getBoundingClientRect();
+                // measure
+                tip.style.left = '0px';
+                tip.style.top = '0px';
+                tip.classList.add('is-visible');
+                const tw = tip.offsetWidth;
+                const th = tip.offsetHeight;
+                let left = r.left + r.width / 2 - tw / 2;
+                let top = r.top - th - 8;
+                if (top < 4) top = r.bottom + 8;
+                if (left < 4) left = 4;
+                if (left + tw > window.innerWidth - 4) left = window.innerWidth - tw - 4;
+                tip.style.left = left + 'px';
+                tip.style.top = top + 'px';
+            }
+            document.addEventListener('mouseover', e => {
+                const icon = e.target.closest('.sf-tooltip-icon');
+                if (!icon) return;
+                const text = icon.getAttribute('data-tooltip');
+                if (!text) return;
+                tip.textContent = text;
+                position(icon);
+            });
+            document.addEventListener('mouseout', e => {
+                const icon = e.target.closest('.sf-tooltip-icon');
+                if (!icon) return;
+                tip.classList.remove('is-visible');
+            });
+            window.addEventListener('scroll', () => tip.classList.remove('is-visible'), true);
+        })();
+    </script>
+</body>
+</html>
